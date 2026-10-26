@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="朱博的笔记与文件：计算机、人工智能、数学、物理。">
+<title>笔记与文件 · 朱博</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="site.css">
+<script src="site.js" defer></script>
+<script src="filt.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+
+<div class="mobbar">
+  <a class="mark" href="./">phenol<i>.</i></a>
+  <nav><a href="notes.html">笔记</a><a href="work.html">作品</a><a href="./#contact">联系</a></nav>
+</div>
+
+<div class="shell">
+
+<aside class="rail">
+  <a class="mark" href="./">phenol<i>.</i></a>
+  <p class="rail-sub">朱博<br>上海交通大学 · 人工智能</p>
+  <nav>
+    <a href="notes.html" aria-current="page">笔记</a>
+    <a href="work.html">作品</a>
+    <a href="./#contact">联系</a>
+  </nav>
+</aside>
+
+<main id="main">
+  <h1>笔记与文件</h1>
+  <p class="lede">上课用的讲义、推完的证明、重写的草稿。按学科筛，链接指向 PDF 或仓库里的 Markdown。</p>
+
+  <section id="notes">
+    <div class="sec-head">
+      <h2>全部条目</h2>
+      <span class="sec-note" id="note-count"></span>
+    </div>
+    <div class="filters" id="filters">
+      <span id="chip-thumb" aria-hidden="true"></span>
+      <button class="chip" data-cat="all" aria-pressed="true">全部</button>
+      <button class="chip" data-cat="cs" aria-pressed="false">CS</button>
+      <button class="chip" data-cat="ai" aria-pressed="false">AI</button>
+      <button class="chip" data-cat="math" aria-pressed="false">MATH</button>
+      <button class="chip" data-cat="phy" aria-pressed="false">PHY</button>
+    </div>
+    <ul class="list" id="items">
+      <li class="item" data-cat="math"><a href="【链接】"><span class="meta">10-21</span><span class="tag math">Math</span><span class="title"><span>特征值为什么是谱方法的入口</span></span></a></li>
+      <li class="item" data-cat="ai"><a href="【链接】"><span class="meta">10-18</span><span class="tag ai">AI</span><span class="title"><span>结构预测里的损失函数</span></span></a></li>
+      <li class="item" data-cat="cs"><a href="【链接】"><span class="meta">10-12</span><span class="tag cs">CS</span><span class="title"><span>文件系统为什么需要页缓存</span></span></a></li>
+      <li class="item" data-cat="phy"><a href="【链接】"><span class="meta">10-05</span><span class="tag phy">PHY</span><span class="title"><span>最小作用量原理的三种表述</span></span></a></li>
+      <li class="item" data-cat="math"><a href="【链接】"><span class="meta">09-28</span><span class="tag math">Math</span><span class="title"><span>从平均变化率到导数</span></span></a></li>
+      <li class="item" data-cat="ai"><a href="【链接】"><span class="meta">09-15</span><span class="tag ai">AI</span><span class="title"><span>扩散模型的条件生成</span></span></a></li>
+      <li class="item" data-cat="cs"><a href="【链接】"><span class="meta">09-02</span><span class="tag cs">CS</span><span class="title"><span>编译一次 C 文件到底发生了多少事</span></span></a></li>
+      <li class="item" data-cat="phy"><a href="【链接】"><span class="meta">08-20</span><span class="tag phy">PHY</span><span class="title"><span>玻尔兹曼分布从哪里来</span></span></a></li>
+    </ul>
+    <p class="sr-only" id="note-status" aria-live="polite"></p>
+  </section>
+
+  <footer>© 2026 朱博 · <a href="./">首页</a> · <a href="work.html">作品</a></footer>
+</main>
+</div>
+</body>
+</html>

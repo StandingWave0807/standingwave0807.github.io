@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="朱博的个人主页：人工智能方向的笔记、推导草稿与写过的一些工具。">
+<title>朱博</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="site.css">
+<script src="site.js" defer></script>
+<script src="mol.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+
+<div class="mobbar">
+  <a class="mark" href="./">phenol<i>.</i></a>
+  <nav><a href="notes.html">笔记</a><a href="work.html">作品</a><a href="#contact">联系</a></nav>
+</div>
+
+<div class="shell">
+
+<aside class="rail">
+  <a class="mark" href="./">phenol<i>.</i></a>
+  <p class="rail-sub">朱博<br>上海交通大学 · 人工智能</p>
+  <nav>
+    <a href="notes.html">笔记</a>
+    <a href="work.html">作品</a>
+    <a href="#contact">联系</a>
+  </nav>
+</aside>
+
+<main id="main">
+  <h1>在分子、矩阵和编译器之间找同一个结构</h1>
+  <p class="lede">域名里的 phenol 是酚酞的酚。酚酞遇碱会从无色变成品红，这个站的全部配色都取自那一步反应。下面三个分子就是它的说明书——切换、拖 pH。</p>
+
+  <section id="molecule">
+    <div class="sec-head">
+      <h2>三种酚</h2>
+      <span class="sec-note">结构示意</span>
+    </div>
+    <div class="panel">
+      <div class="panel-top">
+        <div class="tabs" id="tabs" role="tablist" aria-label="选择分子">
+          <span id="tab-pill" aria-hidden="true"></span>
+          <button class="tab" role="tab" id="tab-phenol" aria-selected="true" aria-controls="stage" data-mol="phenol" tabindex="0">苯酚</button>
+          <button class="tab" role="tab" id="tab-catechol" aria-selected="false" aria-controls="stage" data-mol="catechol" tabindex="-1">邻苯二酚</button>
+          <button class="tab" role="tab" id="tab-phenolp" aria-selected="false" aria-controls="stage" data-mol="phenolphthalein" tabindex="-1">酚酞</button>
+        </div>
+        <span class="panel-formula" id="formula">C₆H₅OH</span>
+      </div>
+      <div class="stage" id="stage" role="tabpanel" aria-labelledby="tab-phenol" tabindex="-1"></div>
+      <p class="panel-note" id="mol-note"></p>
+      <div class="ph" id="ph" hidden>
+        <label for="ph-range">pH</label>
+        <input id="ph-range" type="range" min="0" max="14" step="0.1" value="7" aria-describedby="ph-out">
+        <span class="swatch" id="ph-swatch" aria-hidden="true"></span>
+        <output id="ph-out" for="ph-range"></output>
+      </div>
+    </div>
+  </section>
+
+  <section id="elsewhere">
+    <div class="sec-head">
+      <h2>里面有什么</h2>
+      <span class="sec-note">两页</span>
+    </div>
+    <ul class="list">
+      <li class="item"><a href="notes.html">
+        <span class="meta">notes</span><span class="tag">Files</span>
+        <span class="title"><span>笔记与文件 · CS / AI / Math / Phy</span></span>
+      </a></li>
+      <li class="item"><a href="work.html">
+        <span class="meta">work</span><span class="tag">Code</span>
+        <span class="title"><span>作品 · 在写的和停掉的</span></span>
+      </a></li>
+    </ul>
+  </section>
+
+  <section id="contact">
+    <div class="sec-head"><h2>Contact</h2></div>
+    <p class="contact">
+      <a href="mailto:【邮箱】">【邮箱】</a> ·
+      <a href="https://github.com/StandingWave0807">GitHub</a>
+    </p>
+  </section>
+
+  <footer>© 2026 朱博 · <a href="notes.html">笔记</a> · <a href="work.html">作品</a></footer>
+</main>
+</div>
+</body>
+</html>

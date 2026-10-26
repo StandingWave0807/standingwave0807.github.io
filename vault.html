@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Private</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --bg: #fbfbfa; --surface: #ffffff; --fg: #16181c; --muted: #6d7076;
+  --faint: #9a9da3; --line: #e4e4e1; --accent: #1f5c4d; --danger: #a13d3d;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111316; --surface: #181b1f; --fg: #e8e9ea; --muted: #9ba0a7;
+    --faint: #6f747b; --line: #282c32; --accent: #6ec2a8; --danger: #e08a8a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 47rem; margin: 0 auto; padding: 0 1.25rem; }
+header { border-bottom: 1px solid var(--line); }
+.bar { display: flex; align-items: baseline; justify-content: space-between; padding: .85rem 0; flex-wrap: wrap; gap: .35rem 1rem; }
+.brand { font-family: var(--mono); font-size: .92rem; font-weight: 600; text-decoration: none; color: var(--fg); }
+.brand::before { content: "$ "; color: var(--accent); }
+.bar a { font-family: var(--mono); font-size: .84rem; color: var(--muted); text-decoration: none; }
+.bar a:hover { color: var(--accent); }
+main { padding: 3rem 0 4rem; }
+h1 { font-size: 1.35rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
+.hint { color: var(--muted); font-size: .9rem; margin: 0 0 1.8rem; }
+label { display: block; font-family: var(--mono); font-size: .78rem; color: var(--faint); margin-bottom: .35rem; }
+input, textarea {
+  width: 100%; font: inherit; color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: .6rem .75rem;
+}
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+textarea { font-family: var(--mono); font-size: .88rem; line-height: 1.7; min-height: 26rem; resize: vertical; }
+.row { display: flex; gap: .6rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+button {
+  font: inherit; font-size: .9rem; padding: .5rem 1.05rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { button.primary { color: #111316; } }
+button:hover { border-color: var(--accent); }
+#doc {
+  font-family: var(--mono); font-size: .88rem; line-height: 1.8; white-space: pre-wrap;
+  word-break: break-word; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 1.1rem 1.2rem; margin: 0 0 1rem;
+}
+#msg { min-height: 1.4rem; margin-top: .8rem; font-size: .86rem; color: var(--muted); }
+#msg.err { color: var(--danger); }
+.hidden { display: none; }
+.note { font-size: .84rem; color: var(--faint); margin-top: 2.2rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.note code { font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="./">standingwave</a>
+    <a href="./">back to site</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Private</h1>
+  <p class="hint">内容以 AES-256-GCM 加密存放在 <code>vault.dat</code>，口令只在你输入的那一刻存在于内存里。</p>
+
+  <section id="gate">
+    <label for="pw">口令</label>
+    <input id="pw" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="row">
+      <button class="primary" id="unlock">解锁</button>
+      <button id="to-edit">新建 / 改写</button>
+    </div>
+  </section>
+
+  <section id="view" class="hidden">
+    <pre id="doc"></pre>
+    <div class="row"><button id="edit">编辑</button></div>
+  </section>
+
+  <section id="edit-form" class="hidden">
+    <label for="body">正文（纯文本 / Markdown 源码）</label>
+    <textarea id="body" spellcheck="false"></textarea>
+    <div style="margin-top:1rem">
+      <label for="pw2">新口令</label>
+      <input id="pw2" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="row">
+      <button class="primary" id="seal">加密并下载 vault.dat</button>
+      <button id="cancel">取消</button>
+    </div>
+  </section>
+
+  <p id="msg"></p>
+
+  <p class="note">
+    保存流程：点「加密并下载」得到 <code>vault.dat</code>，用它覆盖仓库里的同名文件并 push。
+    浏览器不能直接写仓库，这一步省不掉。
+  </p>
+</main>
+
+<script>
+(function () {
+  var ITER = 600000, FILE = "vault.dat", data = null, plain = "";
+  var $ = function (id) { return document.getElementById(id); };
+  var enc = new TextEncoder(), dec = new TextDecoder();
+
+  function b64(buf) {
+    var s = "", a = new Uint8Array(buf);
+    for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+    return btoa(s);
+  }
+  function unb64(str) {
+    var s = atob(str), a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  }
+  function say(text, isErr) {
+    var m = $("msg");
+    m.textContent = text;
+    m.className = isErr ? "err" : "";
+  }
+  function show(which) {
+    ["gate", "view", "edit-form"].forEach(function (id) {
+      $(id).classList.toggle("hidden", id !== which);
+    });
+  }
+  function derive(pass, salt, iter) {
+    return crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"])
+      .then(function (base) {
+        return crypto.subtle.deriveKey(
+          { name: "PBKDF2", salt: salt, iterations: iter, hash: "SHA-256" },
+          base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+        );
+      });
+  }
+
+  function load() {
+    return fetch(FILE, { cache: "no-store" }).then(function (r) {
+      if (!r.ok) return null;
+      return r.text().then(function (t) {
+        var o = JSON.parse(t);
+        if (o.format !== "standingwave-vault-v1") throw new Error("文件格式不认识");
+        return o;
+      });
+    });
+  }
+
+  function unlock() {
+    var pass = $("pw").value;
+    if (!pass) { say("先输入口令", true); return; }
+    if (!data) { say("没有可解锁的内容", true); return; }
+    say("正在派生密钥，这一步故意慢…");
+    derive(pass, unb64(data.salt), data.iterations).then(function (key) {
+      return crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: unb64(data.iv) }, key, unb64(data.ciphertext)
+      );
+    }).then(function (buf) {
+      plain = dec.decode(buf);
+      $("pw").value = "";
+      $("doc").textContent = plain;
+      show("view");
+      say("已解锁。");
+    }).catch(function () {
+      say("口令错误，或文件被改动过。", true);
+    });
+  }
+
+  function seal() {
+    var body = $("body").value, pass = $("pw2").value;
+    if (!body.trim()) { say("正文是空的，不生成文件。", true); return; }
+    if (pass.length < 12) { say("口令至少 12 个字符。建议用五个以上互不相关的词拼起来。", true); return; }
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    say("加密中…");
+    derive(pass, salt, ITER).then(function (key) {
+      return crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(body));
+    }).then(function (ct) {
+      var out = {
+        format: "standingwave-vault-v1",
+        kdf: "PBKDF2-SHA256",
+        cipher: "AES-256-GCM",
+        iterations: ITER,
+        salt: b64(salt),
+        iv: b64(iv),
+        ciphertext: b64(ct),
+        updated: new Date().toISOString().slice(0, 10)
+      };
+      var blob = new Blob([JSON.stringify(out, null, 1)], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = FILE;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      data = out;
+      plain = body;
+      $("pw2").value = "";
+      $("doc").textContent = body;
+      show("view");
+      say("已下载 " + FILE + "，覆盖仓库里的旧文件后 push。");
+    }).catch(function (e) {
+      say("加密失败：" + e.message, true);
+    });
+  }
+
+  $("unlock").addEventListener("click", unlock);
+  $("pw").addEventListener("keydown", function (e) { if (e.key === "Enter") unlock(); });
+  $("edit").addEventListener("click", function () {
+    $("body").value = plain;
+    show("edit-form");
+    say("改完要重新设一次口令并下载新文件；想沿用旧口令就填同一个。");
+  });
+  $("to-edit").addEventListener("click", function () {
+    $("body").value = data ? plain : "";
+    show("edit-form");
+    say(data ? "改写现有内容需要新口令（可以填同一个）。" : "还没有 vault.dat，写好正文并设口令即可生成。");
+  });
+  $("seal").addEventListener("click", seal);
+  $("cancel").addEventListener("click", function () {
+    if (plain) { $("doc").textContent = plain; show("view"); } else { show("gate"); }
+    say("");
+  });
+
+  if (!window.isSecureContext || !crypto.subtle) {
+    show("none");
+    $("gate").classList.add("hidden");
+    $("to-edit").classList.add("hidden");
+    say("当前环境没有 WebCrypto。用 https 访问，或本地起一个服务器再打开。", true);
+  } else {
+    load().then(function (o) {
+      data = o;
+      if (o) { say("已载入 " + FILE + "（更新于 " + (o.updated || "未知日期") + "）。"); }
+      else {
+        say(FILE + " 还不存在。首次使用点「新建 / 改写」。");
+        $("unlock").disabled = true;
+      }
+    }).catch(function (e) {
+      say("读取 " + FILE + " 失败：" + e.message + "。用 file:// 直接打开本页会被拦，请走 https 或本地服务器。", true);
+    });
+  }
+})();
+</script>
+</body>
+</html>
