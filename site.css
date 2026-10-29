@@ -172,3 +172,25 @@ html.dark .side .it.done .bx,html.dark .side .it.on .bx{background-image:url("da
 .cdbar input{border:2px solid var(--line);background:var(--bg);color:var(--fg);padding:4px 8px;font:inherit;font-size:13px;font-family:inherit}
 .cdbar button{padding:4px 12px;font-size:12.5px}
 #cd-done{color:var(--warn)}
+a.btnlink{display:inline-flex;align-items:center;gap:.4em;border:2px solid var(--line);padding:5px 14px;background:var(--bg);color:var(--fg);text-decoration:none;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-weight:700;font-size:13.5px}
+a.btnlink:hover{background:var(--hover)}
+a.btnlink:active{transform:scale(.97)}
+.cdbar .q{border:1.5px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:12.5px;font-weight:700;padding:3px 9px;cursor:pointer}
+.cdbar .q:hover{background:var(--hover)}
+/* 全站不出现裸超链接 */
+a{color:inherit;text-decoration:none}
+.prose td a,.prose li a{display:inline-block;border:1.5px solid var(--line);padding:0 8px;font-size:14px;line-height:1.55}
+.prose td a:hover,.prose li a:hover{background:var(--hover);border-color:var(--fg)}
+/* 计时器与倒数日控件 */
+.clock .u.wide{min-width:120px;flex:1 1 120px}
+#tm-time.low{color:var(--bad)}
+#cd-done{color:var(--warn);font-size:12.5px}
+.cdbar .grp{font-weight:700;color:var(--fg);font-size:13px;letter-spacing:.02em}
+.cdbar .set{display:inline-flex;align-items:center;gap:4px}
+.cdbar input{border:1.5px solid var(--line);background:var(--bg);color:var(--fg);font-family:"JetBrains Mono",Consolas,monospace;font-size:13px;padding:3px 6px;text-align:center}
+.cdbar input.txt{text-align:left;font-family:inherit;min-width:6em}
+.cdbar input.wide{min-width:11em}
+.cdbar input.num{width:3.2em}
+.cdbar input.bad{border-color:var(--bad);background:var(--badbg)}
+.cdbar button.go{border:2px solid var(--line);background:var(--fg);color:var(--bg);font:inherit;font-weight:700;font-size:12.5px;padding:3px 16px;cursor:pointer}
+.cdbar button.go:hover{opacity:.88}

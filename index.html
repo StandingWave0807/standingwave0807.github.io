@@ -27,7 +27,7 @@
     <a class="it" href="notes.html"><span class="bx"></span><span class="nm">笔记与文件</span><span class="st">★</span></a>
     <a class="it" href="work.html"><span class="bx"></span><span class="nm">作品</span><span class="st">★</span></a>
     <div class="grp">实验室<b>本地判题</b></div>
-    <a class="it" href="lab/cpp.html"><span class="bx"></span><span class="nm">C++ 实验室（下）</span><span class="st">114 题</span></a>
+    <a class="it" href="lab/cpp.html"><span class="bx"></span><span class="nm">C++ 实验室</span><span class="st">170 题</span></a>
     <a class="it" href="lab/pylab.html"><span class="bx"></span><span class="nm">Python 生活实验室</span><span class="st">334 题</span></a>
   </nav>
 
@@ -43,26 +43,39 @@
       <h4>此刻</h4>
       <div class="clock">
         <div class="now"><span class="t mono" id="clk-time">--:--:--</span><span class="d" id="clk-date">—</span><span class="d" id="clk-zone">UTC</span></div>
-        <div class="u"><b class="mono" id="cd-d">–</b><span id="cd-label">倒计时</span></div>
+        <div class="u wide"><b class="mono" id="tm-time">45:00</b><span id="tm-status">已停止</span></div>
+        <div class="u"><b class="mono" id="cd-d">–</b><span id="cd-label">新年</span></div>
         <div class="u"><b class="mono" id="cd-h">--</b><span>时</span></div>
         <div class="u"><b class="mono" id="cd-m">--</b><span>分</span></div>
         <div class="u"><b class="mono" id="cd-s">--</b><span>秒</span></div>
       </div>
       <div class="cdbar">
-        <label>目标 <input type="datetime-local" id="cd-input"></label>
-        <label>名称 <input type="text" id="cd-label-input" maxlength="12" size="8"></label>
-        <button id="cd-reset">重置为新年</button>
+        <span class="grp">限时训练</span>
+        <button class="q" data-min="15">15 分</button>
+        <button class="q" data-min="30">30 分</button>
+        <button class="q" data-min="45">45 分</button>
+        <button class="q" data-min="60">60 分</button>
+        <button class="q" data-min="120">120 分</button>
+        <label class="set">自定义<input class="num" id="tm-min" inputmode="numeric" size="2" value="45">分<input class="num" id="tm-sec" inputmode="numeric" size="2" value="0">秒</label>
+        <button class="go" id="tm-start">开始</button>
+        <button class="q" id="tm-reset">重置</button>
         <span id="cd-done" hidden></span>
-        <a href="https://time.is/" target="_blank" rel="noopener noreferrer">time.is 对时</a>
+      </div>
+      <div class="cdbar">
+        <span class="grp">倒数日</span>
+        <label class="set">名称<input class="txt" id="cd-label-input" maxlength="12" size="6"></label>
+        <label class="set">目标<input class="txt wide" id="cd-input" placeholder="2027-01-01 00:00" autocomplete="off"></label>
+        <button class="q" id="cd-newyear">到新年</button>
+        <a class="btnlink" href="https://time.is/" target="_blank" rel="noopener noreferrer">time.is 对时</a>
       </div>
 
       <h4>入口</h4>
       <a class="lab-link" href="notes.html">笔记与文件<span class="sub"> · CS / AI / Math / Phy</span><span class="arrow">→</span></a>
       <a class="lab-link" href="work.html">作品<span class="sub"> · 在写的和停掉的</span><span class="arrow">→</span></a>
-      <a class="lab-link" href="lab/cpp.html">C++ 实验室（下）<span class="sub"> · 第 9–16 章，114 题</span><span class="arrow">→</span></a>
+      <a class="lab-link" href="lab/cpp.html">C++ 实验室<span class="sub"> · 第 6–16 章，170 题</span><span class="arrow">→</span></a>
       <a class="lab-link" href="lab/pylab.html">Python 生活实验室<span class="sub"> · 第 1–17 章，334 题</span><span class="arrow">→</span></a>
       <h4>联系</h4>
-      <p><a href="mailto:【邮箱】">【邮箱】</a> · <a href="https://github.com/StandingWave0807">GitHub</a></p>
+      <p><a class="btnlink" href="mailto:【邮箱】">邮箱</a> <a class="btnlink" href="https://github.com/StandingWave0807">GitHub</a></p>
       <blockquote>实验室的判分口径写在题面旁边：行尾空白和末尾空行不算差异，其余逐字符比对。没有内存限制，也没有沙箱——它是练习器，不是比赛。</blockquote>
     </div>
   </section>

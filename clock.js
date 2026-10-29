@@ -1,97 +1,151 @@
-/* 首页时钟与倒计时：时间取自 Date（与 time.is 同一来源），不引第三方脚本 */
+/* 首页：时钟、限时计时器、倒数日。时间全部用 Date 自己算，不引第三方脚本。 */
 (function () {
   'use strict';
-  var KEY = "lab-countdown-v1";
+  var $ = function (id) { return document.getElementById(id); };
+  var pad = function (n) { return (n < 10 ? "0" : "") + n; };
   var WD = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
-  function $(id) { return document.getElementById(id); }
-  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  var clockEl = $("clk-time"), dateEl = $("clk-date"), zoneEl = $("clk-zone");
+  if (!clockEl) return;
+  var tz = -new Date().getTimezoneOffset() / 60;
+  zoneEl.textContent = "UTC" + (tz >= 0 ? "+" : "") + (tz % 1 ? tz.toFixed(1) : tz);
 
-  function defaultTarget() {
-    var now = new Date();
-    var y = now.getFullYear();
-    var t = new Date(y + 1, 0, 1, 0, 0, 0);
-    var thisNewYear = new Date(y, 0, 1, 0, 0, 0);
-    if (now < thisNewYear) return thisNewYear;
-    return t;
+  /* ---------------- 限时计时器 ---------------- */
+  var KEY_T = "lab-timer-v1";
+  var tDisp = $("tm-time"), tStatus = $("tm-status"), tMin = $("tm-min"), tSec = $("tm-sec");
+  var running = false, endsAt = 0, remain = 0;
+
+  function readInputs() {
+    var m = Math.max(0, parseInt(tMin.value, 10) || 0);
+    var s = Math.max(0, Math.min(59, parseInt(tSec.value, 10) || 0));
+    return (m * 60 + s) * 1000;
   }
-  function load() {
+  function fmt(ms) {
+    var t = Math.max(0, Math.round(ms / 1000)), h = Math.floor(t / 3600),
+        m = Math.floor(t / 60) % 60, s = t % 60;
+    return (h ? h + ":" : "") + pad(m) + ":" + pad(s);
+  }
+  function paintTimer() {
+    tDisp.textContent = fmt(remain);
+    tDisp.classList.toggle("low", running && remain <= 60000);
+  }
+  function setRunning(on) {
+    running = on;
+    $("tm-start").textContent = on ? "暂停" : "开始";
+    tStatus.textContent = on ? "计时中" : (remain > 0 ? "已暂停" : "已停止");
+  }
+  function tickTimer() {
+    if (!running) return;
+    remain = endsAt - Date.now();
+    if (remain <= 0) { remain = 0; setRunning(false); tStatus.textContent = "时间到"; }
+    paintTimer();
+  }
+  $("tm-start").addEventListener("click", function () {
+    if (running) { remain = Math.max(0, endsAt - Date.now()); setRunning(false); paintTimer(); return; }
+    if (remain <= 0) remain = readInputs();
+    if (remain <= 0) { tStatus.textContent = "先设一个时长"; return; }
+    endsAt = Date.now() + remain;
+    setRunning(true);
+    tickTimer();
+  });
+  $("tm-reset").addEventListener("click", function () {
+    running = false; remain = readInputs(); setRunning(false); paintTimer();
+  });
+  [].forEach.call(document.querySelectorAll("[data-min]"), function (b) {
+    b.addEventListener("click", function () {
+      running = false;
+      remain = (+b.dataset.min) * 60000;
+      tMin.value = Math.floor(remain / 60000);
+      tSec.value = Math.round(remain / 1000) % 60;
+      setRunning(false); paintTimer();
+      try { localStorage.setItem(KEY_T, String(remain)); } catch (e) {}
+    });
+  });
+  [tMin, tSec].forEach(function (el) {
+    el.addEventListener("change", function () {
+      if (running) return;
+      remain = readInputs(); paintTimer();
+      try { localStorage.setItem(KEY_T, String(remain)); } catch (e) {}
+    });
+  });
+  var savedT = +(localStorage.getItem(KEY_T) || 0);
+  remain = savedT > 0 ? savedT : 45 * 60000;
+  tMin.value = Math.floor(remain / 60000);
+  tSec.value = Math.round(remain / 1000) % 60;
+  paintTimer();
+  setRunning(false);
+
+  /* ---------------- 倒数日 ---------------- */
+  var KEY_D = "lab-countdown-v1";
+  var dEl = $("cd-d"), hEl = $("cd-h"), mEl = $("cd-m"), sEl = $("cd-s");
+  var nameEl = $("cd-label"), inputEl = $("cd-input"), doneEl = $("cd-done");
+  var lbl = $("cd-label-input");
+
+  function parseTarget(text) {
+    var m = /^\s*(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?\s*$/.exec(text);
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+    // Date rolls out-of-range fields over into a different valid date, so compare every part back
+    var ok = d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] &&
+             d.getHours() === +(m[4] || 0) && d.getMinutes() === +(m[5] || 0);
+    return ok ? d : null;
+  }
+  function fmtTarget(d) {
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+           " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function newYear() {
+    var n = new Date();
+    var jan1 = new Date(n.getFullYear(), 0, 1);
+    return (n >= jan1 && n < new Date(n.getFullYear(), 0, 2)) ? jan1 : new Date(n.getFullYear() + 1, 0, 1);
+  }
+  var cd = (function () {
     try {
-      var o = JSON.parse(localStorage.getItem(KEY) || "null");
+      var o = JSON.parse(localStorage.getItem(KEY_D) || "null");
       if (o && o.target) {
         var d = new Date(o.target);
-        if (!isNaN(d)) return { target: d, label: o.label || "倒计时" };
+        if (!isNaN(d.getTime())) return { target: d, label: o.label || "目标" };
       }
     } catch (e) {}
-    return { target: defaultTarget(), label: "新年" };
+    return { target: newYear(), label: "新年" };
+  })();
+  function saveCd() {
+    try { localStorage.setItem(KEY_D, JSON.stringify({ target: cd.target.toISOString(), label: cd.label })); } catch (e) {}
   }
-  function store() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify({ target: st.target.toISOString(), label: st.label }));
-    } catch (e) {}
+  function reject() {
+    inputEl.value = fmtTarget(cd.target);
+    inputEl.classList.add("bad");
+    setTimeout(function () { inputEl.classList.remove("bad"); }, 900);
   }
+  inputEl.value = fmtTarget(cd.target);
+  lbl.value = cd.label;
+  nameEl.textContent = cd.label;
+  lbl.addEventListener("input", function () {
+    cd.label = lbl.value || "目标"; nameEl.textContent = cd.label; saveCd();
+  });
+  inputEl.addEventListener("change", function () {
+    var d = parseTarget(inputEl.value);
+    if (!d) { reject(); return; }
+    cd.target = d; saveCd(); tickCd();
+  });
+  $("cd-newyear").addEventListener("click", function () {
+    cd.target = newYear(); cd.label = "新年";
+    inputEl.value = fmtTarget(cd.target); lbl.value = cd.label; nameEl.textContent = cd.label;
+    saveCd(); tickCd();
+  });
 
-  var st = load();
-  var clockEl = $("clk-time"), dateEl = $("clk-date"), zoneEl = $("clk-zone");
-  var dEl = $("cd-d"), hEl = $("cd-h"), mEl = $("cd-m"), sEl = $("cd-s");
-  var labelEl = $("cd-label"), inputEl = $("cd-input"), doneEl = $("cd-done");
-  if (!clockEl) return;
-
-  var tz = -new Date().getTimezoneOffset() / 60;
-  if (zoneEl) zoneEl.textContent = "UTC" + (tz >= 0 ? "+" : "") + (tz % 1 ? tz.toFixed(1) : tz);
-
-  function toLocalInput(d) {
-    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
-           "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
-  }
-  if (inputEl) inputEl.value = toLocalInput(st.target);
-  if (labelEl) labelEl.textContent = st.label;
-
-  var lastSec = -1;
-  function tick() {
+  function tickCd() {
     var now = new Date();
-    var s = now.getSeconds();
-    if (s === lastSec) return;
-    lastSec = s;
-    clockEl.textContent = pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(s);
-    dateEl.textContent = now.getFullYear() + " 年 " + (now.getMonth() + 1) + " 月 " +
-                         now.getDate() + " 日 " + WD[now.getDay()];
-    var ms = st.target - now;
-    var over = ms <= 0;
+    clockEl.textContent = pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+    dateEl.textContent = now.getFullYear() + " 年 " + (now.getMonth() + 1) + " 月 " + now.getDate() + " 日 " + WD[now.getDay()];
+    var ms = cd.target - now, over = ms <= 0;
     if (over) ms = -ms;
-    var d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24,
-        m = Math.floor(ms / 6e4) % 60, sec = Math.floor(ms / 1e3) % 60;
-    dEl.textContent = over ? "+" + d : String(d);
-    hEl.textContent = pad(h); mEl.textContent = pad(m); sEl.textContent = pad(sec);
+    dEl.textContent = (over ? "+" : "") + Math.floor(ms / 864e5);
+    hEl.textContent = pad(Math.floor(ms / 36e5) % 24);
+    mEl.textContent = pad(Math.floor(ms / 6e4) % 60);
+    sEl.textContent = pad(Math.floor(ms / 1e3) % 60);
     doneEl.hidden = !over;
-    doneEl.textContent = "目标时间已过，显示的是超出天数。";
   }
-  if (inputEl) {
-    inputEl.addEventListener("change", function () {
-      var d = new Date(inputEl.value);
-      if (isNaN(d)) { inputEl.value = toLocalInput(st.target); return; }
-      st.target = d; store(); lastSec = -1; tick();
-    });
-  }
-  var lbl = $("cd-label-input");
-  if (lbl) {
-    lbl.value = st.label;
-    lbl.addEventListener("input", function () {
-      st.label = lbl.value || "倒计时";
-      labelEl.textContent = st.label;
-      store();
-    });
-  }
-  var rst = $("cd-reset");
-  if (rst) {
-    rst.addEventListener("click", function () {
-      st = { target: defaultTarget(), label: "新年" };
-      inputEl.value = toLocalInput(st.target);
-      if (lbl) lbl.value = st.label;
-      labelEl.textContent = st.label;
-      store(); lastSec = -1; tick();
-    });
-  }
-  tick();
-  setInterval(tick, 250);
+  tickCd();
+  setInterval(function () { tickCd(); tickTimer(); }, 200);
 })();
