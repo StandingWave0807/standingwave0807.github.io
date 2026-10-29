@@ -6,6 +6,7 @@
   'use strict';
   var KEY = "cpplab2-base";
   var DEF = "http://127.0.0.1:8710";
+  var TOKEN = "cpplab2";
 
   function on() {
     try { return localStorage.getItem("lab-online") === "1"; } catch (e) { return false; }
@@ -25,30 +26,42 @@
     }
   } catch (e) {}
   base = String(base).replace(/\/+$/, "");
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(base)) base = DEF;
+  // 只准指向本机端口，免得 ?base= 把代码发去别的主机
+  if (!/^https?:\/\/(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|\[::1\])(:\d{1,5})?$/.test(base)) base = DEF;
+
+  var alive = false;
+  function paint(v) {
+    alive = v;
+    var b = document.getElementById("btnLocal");
+    if (!b) return;
+    b.textContent = v ? "本机判题 已连上" : "本机判题 未连上";
+    b.style.background = v ? "var(--fg)" : "";
+    b.style.color = v ? "var(--bg)" : "";
+    b.title = base + "/ping —— 关掉服务窗口即断开";
+  }
 
   var real = window.fetch.bind(window);
   window.fetch = function (url, opt) {
     var u = String(url);
     if (/^\/(ping|api\/)/.test(u)) u = base + u;
-    return real(u, opt);
+    var p = real(u, opt);
+    // 页面每次探活都顺手把开关的状态刷新，这里不额外发请求
+    if (u.indexOf("/ping") >= 0) {
+      p.then(function (r) {
+        r.clone().text().then(function (t) { paint(r.ok && t === TOKEN); }, function () {});
+      }, function () { paint(false); });
+    }
+    return p;
   };
 
   document.addEventListener("DOMContentLoaded", function () {
     var b = document.getElementById("btnLocal");
     if (!b) return;
-    function paint(alive) {
-      b.textContent = alive ? "本机判题 已连上" : "本机判题 未连上";
-      b.style.background = alive ? "var(--fg)" : "";
-      b.style.color = alive ? "var(--bg)" : "";
-      b.title = base + "/ping —— 关掉服务窗口即断开";
-    }
-    paint(false);
+    paint(alive);
     b.addEventListener("click", function () {
-      fetch("/ping", { cache: "no-store" })
+      real(base + "/ping", { cache: "no-store" })
         .then(function (r) { return r.text(); })
-        .then(function (t) { paint(t === "cpplab2"); })
-        .catch(function () { paint(false); });
+        .then(function (t) { paint(t === TOKEN); }, function () { paint(false); });
     });
   });
 })();
