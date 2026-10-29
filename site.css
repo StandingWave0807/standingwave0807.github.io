@@ -124,29 +124,7 @@ body.bookmode .main{grid-template-columns:250px 1fr}body.bookmode .right{display
 header .passcount{min-width:0;overflow:hidden;text-overflow:ellipsis}
 header .chtag,header button,header a{flex:none}
 
-/* ---- phenolforever additions: molecule panel, tab buttons, a11y guards ---- */
-:root{--pink:#b0357a}
-html.dark{--pink:#f272b6}
-.stage{flex:1;min-height:140px;overflow:hidden;padding:6px 10px;display:flex;align-items:center;justify-content:center}
-svg.mol{width:100%;height:100%;max-height:340px}
-svg.mol .b{stroke:var(--fg);stroke-width:1.6;fill:none;stroke-linecap:round}
-svg.mol .b2{stroke:var(--fg);stroke-width:1.6;fill:none;opacity:.5;stroke-linecap:round}
-svg.mol .lab{font-family:"JetBrains Mono","Cascadia Mono",Consolas,monospace;font-size:13px;fill:var(--fg)}
-svg.mol .lab.hi{fill:var(--pink);font-weight:700}
-svg.mol .dot{fill:var(--fg);stroke:none}
-svg.mol .frag{transform-box:fill-box;transform-origin:center}
-.tabs button.tab{background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px 10px;font-size:15px;font-weight:600;color:var(--dim);border-radius:0}
-.tabs button.tab:hover{background:none;color:var(--fg)}
-.tabs button.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--line)}
-#tab-pill{display:none}
-.ph{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--soft);flex:none;flex-wrap:wrap}
-.ph label{font-size:13px;color:var(--dim);font-weight:700}
-.ph input[type=range]{flex:1;min-width:120px;accent-color:var(--pink);height:28px}
-.ph output{font-size:12.5px;color:var(--dim);white-space:nowrap}
-.ph .swatch{width:15px;height:15px;border:2px solid var(--line);background:var(--pink);opacity:0}
-.ph[hidden]{display:none}
-.panelnote{padding:10px 14px;border-top:1px solid var(--soft);font-size:14px;line-height:1.75;color:var(--dim)}
-.panelnote b{color:var(--fg)}
+/* ---- phenolforever additions: nav rows, filter chips, tables, a11y guards ---- */
 a.lab-link{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1.5px solid var(--soft);font-size:16px}
 a.lab-link:hover{background:var(--hover)}
 a.lab-link .arrow{margin-left:auto;color:var(--dim)}

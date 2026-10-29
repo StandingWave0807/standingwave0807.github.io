@@ -8,15 +8,13 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="site.css">
 <script src="theme.js" defer></script>
-<script src="site.js" defer></script>
-<script src="mol.js" defer></script>
 </head>
-<body>
+<body class="bookmode">
 <header>
   <span class="chtag">phenolforever</span>
   <h1>朱博 · 上海交通大学 人工智能</h1>
   <span class="sp"></span>
-  <span class="passcount" id="passcount"></span>
+  <span class="passcount">3 页 · 3 个实验室</span>
   <button class="mini" id="btnTheme">暗色</button>
 </header>
 
@@ -34,9 +32,6 @@
   </nav>
 
   <section class="mid">
-    <div class="tabs">
-      <div class="on">自述</div>
-    </div>
     <div class="pane prose">
       <div class="badges">
         <span class="badge mono">StandingWave0807</span>
@@ -45,7 +40,6 @@
       </div>
       <h2 class="pt">在分子、矩阵和编译器之间找同一个结构</h2>
       <p>这里放着两类东西：一套自己用的算法竞赛实验室，和它的讲义、题单、推导草稿。实验室的界面是三栏的——左边选题，中间读题，右边写代码；判题要调本机编译器，所以页面里那些「提交」按钮需要你先起本地的评测服务，读题、看讲义和参考解不需要。</p>
-      <p>域名里的 <code>phenol</code> 是酚酞的酚。酚酞遇碱从无色变品红，右边那三个分子就是这件事的说明书——可以切换分子、拖 pH。</p>
       <h4>入口</h4>
       <a class="lab-link" href="notes.html">笔记与文件<span class="sub"> · CS / AI / Math / Phy</span><span class="arrow">→</span></a>
       <a class="lab-link" href="work.html">作品<span class="sub"> · 在写的和停掉的</span><span class="arrow">→</span></a>
@@ -57,30 +51,6 @@
     </div>
   </section>
 
-  <section class="right">
-    <div class="edbar"><span class="fn">三种酚</span><span class="saved" id="formula">C₆H₅OH</span></div>
-    <div class="tabs" id="tabs" role="tablist" aria-label="选择分子">
-      <span id="tab-pill" aria-hidden="true"></span>
-      <button class="tab" role="tab" id="tab-phenol" aria-selected="true" aria-controls="stage" data-mol="phenol" tabindex="0">苯酚</button>
-      <button class="tab" role="tab" id="tab-catechol" aria-selected="false" aria-controls="stage" data-mol="catechol" tabindex="-1">邻苯二酚</button>
-      <button class="tab" role="tab" id="tab-phenolp" aria-selected="false" aria-controls="stage" data-mol="phenolphthalein" tabindex="-1">酚酞</button>
-    </div>
-    <div class="stage" id="stage" role="tabpanel" aria-labelledby="tab-phenol" tabindex="-1"></div>
-    <p class="panelnote" id="mol-note"></p>
-    <div class="ph" id="ph" hidden>
-      <label for="ph-range">pH</label>
-      <input id="ph-range" type="range" min="0" max="14" step="0.1" value="7" aria-describedby="ph-out">
-      <span class="swatch" id="ph-swatch" aria-hidden="true"></span>
-      <output id="ph-out" for="ph-range"></output>
-    </div>
-  </section>
-
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  var el = document.getElementById('passcount');
-  if (el) el.textContent = '结构示意 · 拖 pH 看变色';
-});
-</script>
 </body>
 </html>
