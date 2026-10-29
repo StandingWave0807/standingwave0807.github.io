@@ -123,7 +123,7 @@ var SITE = window.SITE, reduce = SITE.reduce, spring = SITE.spring, readPx = SIT
   function tint(frag, color) {
     frag.querySelectorAll(".b,.b2").forEach(function (n) { n.style.stroke = color; });
     frag.querySelectorAll(".dot").forEach(function (n) { n.style.fill = color; });
-    frag.querySelectorAll(".lab:not(.hi)").forEach(function (n) { n.style.fill = "var(--muted)"; });
+    frag.querySelectorAll(".lab:not(.hi)").forEach(function (n) { n.style.fill = "var(--dim)"; });
   }
   function fit(frag) {
     var svg = frag.ownerSVGElement;
@@ -134,7 +134,7 @@ var SITE = window.SITE, reduce = SITE.reduce, spring = SITE.spring, readPx = SIT
   }
   function paint() {
     var m = MOL[current];
-    var color = m.ph && BASE ? "var(--fuchsia)" : "var(--ink-2)";
+    var color = m.ph && BASE ? "var(--pink)" : "var(--fg)";
     stage.innerHTML =
       '<svg class="mol" viewBox="0 0 640 300" role="img" aria-label="' + ariaFor(current) + '">' +
       '<g class="frag">' + m.draw(m.ph ? BASE : false) + "</g></svg>";
@@ -166,7 +166,7 @@ var SITE = window.SITE, reduce = SITE.reduce, spring = SITE.spring, readPx = SIT
   function swap() {
     var frag = stage.querySelector(".frag");
     if (!frag) { paint(); return; }
-    var color = BASE ? "var(--fuchsia)" : "var(--ink-2)";
+    var color = BASE ? "var(--pink)" : "var(--fg)";
     frag.innerHTML = MOL[current].draw(BASE);
     tint(frag, color);
     fit(frag);

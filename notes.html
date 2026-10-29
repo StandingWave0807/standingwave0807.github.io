@@ -7,39 +7,33 @@
 <title>笔记与文件 · 朱博</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="site.css">
+<script src="theme.js" defer></script>
 <script src="site.js" defer></script>
 <script src="filt.js" defer></script>
 </head>
-<body>
-<a class="skip" href="#main">跳到正文</a>
-
-<div class="mobbar">
-  <a class="mark" href="./">phenol<i>.</i></a>
-  <nav><a href="notes.html">笔记</a><a href="work.html">作品</a><a href="./#contact">联系</a></nav>
-</div>
-
-<div class="shell">
-
-<aside class="rail">
-  <a class="mark" href="./">phenol<i>.</i></a>
-  <p class="rail-sub">朱博<br>上海交通大学 · 人工智能</p>
-  <nav>
-    <a href="notes.html" aria-current="page">笔记</a>
-    <a href="work.html">作品</a>
-    <a href="./#contact">联系</a>
-  </nav>
-</aside>
-
-<main id="main">
+<body class="bookmode">
+<header>
+  <span class="chtag">notes</span>
   <h1>笔记与文件</h1>
-  <p class="lede">上课用的讲义、推完的证明、重写的草稿。按学科筛，链接指向 PDF 或仓库里的 Markdown。</p>
+  <span class="sp"></span>
+  <span class="passcount" id="note-count"></span>
+  <button class="mini" id="btnTheme">暗色</button>
+</header>
 
-  <section id="notes">
-    <div class="sec-head">
-      <h2>全部条目</h2>
-      <span class="sec-note" id="note-count"></span>
-    </div>
-    <div class="filters" id="filters">
+<div class="main">
+  <nav class="side">
+    <div class="grp">本站<b>三页</b></div>
+    <a class="it" href="./"><span class="bx"></span><span class="nm">首页</span><span class="st">★</span></a>
+    <a class="it on" href="notes.html"><span class="bx">✓</span><span class="nm">笔记与文件</span><span class="st">★</span></a>
+    <a class="it" href="work.html"><span class="bx"></span><span class="nm">作品</span><span class="st">★</span></a>
+    <div class="grp">实验室<b>本地判题</b></div>
+    <a class="it" href="lab/cpp.html"><span class="bx"></span><span class="nm">C++ 实验室（下）</span><span class="st">114 题</span></a>
+    <a class="it" href="lab/pylab.html"><span class="bx"></span><span class="nm">Python 生活实验室</span><span class="st">334 题</span></a>
+    <a class="it" href="lab/judge.html"><span class="bx"></span><span class="nm">两题评测台</span><span class="st">2 题</span></a>
+  </nav>
+
+  <section class="mid">
+    <div class="tabs" id="filters">
       <span id="chip-thumb" aria-hidden="true"></span>
       <button class="chip" data-cat="all" aria-pressed="true">全部</button>
       <button class="chip" data-cat="cs" aria-pressed="false">CS</button>
@@ -47,21 +41,25 @@
       <button class="chip" data-cat="math" aria-pressed="false">MATH</button>
       <button class="chip" data-cat="phy" aria-pressed="false">PHY</button>
     </div>
-    <ul class="list" id="items">
-      <li class="item" data-cat="math"><a href="【链接】"><span class="meta">10-21</span><span class="tag math">Math</span><span class="title"><span>特征值为什么是谱方法的入口</span></span></a></li>
-      <li class="item" data-cat="ai"><a href="【链接】"><span class="meta">10-18</span><span class="tag ai">AI</span><span class="title"><span>结构预测里的损失函数</span></span></a></li>
-      <li class="item" data-cat="cs"><a href="【链接】"><span class="meta">10-12</span><span class="tag cs">CS</span><span class="title"><span>文件系统为什么需要页缓存</span></span></a></li>
-      <li class="item" data-cat="phy"><a href="【链接】"><span class="meta">10-05</span><span class="tag phy">PHY</span><span class="title"><span>最小作用量原理的三种表述</span></span></a></li>
-      <li class="item" data-cat="math"><a href="【链接】"><span class="meta">09-28</span><span class="tag math">Math</span><span class="title"><span>从平均变化率到导数</span></span></a></li>
-      <li class="item" data-cat="ai"><a href="【链接】"><span class="meta">09-15</span><span class="tag ai">AI</span><span class="title"><span>扩散模型的条件生成</span></span></a></li>
-      <li class="item" data-cat="cs"><a href="【链接】"><span class="meta">09-02</span><span class="tag cs">CS</span><span class="title"><span>编译一次 C 文件到底发生了多少事</span></span></a></li>
-      <li class="item" data-cat="phy"><a href="【链接】"><span class="meta">08-20</span><span class="tag phy">PHY</span><span class="title"><span>玻尔兹曼分布从哪里来</span></span></a></li>
-    </ul>
-    <p class="sr-only" id="note-status" aria-live="polite"></p>
+    <div class="pane prose">
+      <p>上课用的讲义、推完的证明、重写的草稿。链接指向 PDF 或仓库里的 Markdown，标题是草稿名，不是正式书名。</p>
+      <table>
+        <thead><tr><th>日期</th><th>学科</th><th>标题</th></tr></thead>
+        <tbody id="items">
+          <tr class="item" data-cat="math"><td class="nowrap">10-21</td><td>Math</td><td><a href="【链接】">特征值为什么是谱方法的入口</a><div class="sub">把矩阵乘法还原成基的变换，再从对称矩阵推到傅里叶</div></td></tr>
+          <tr class="item" data-cat="ai"><td class="nowrap">10-18</td><td>AI</td><td><a href="【链接】">结构预测里的损失函数</a><div class="sub">为什么 lDDT 比 RMSD 更适合做优化目标，以及它丢掉了什么</div></td></tr>
+          <tr class="item" data-cat="cs"><td class="nowrap">10-12</td><td>CS</td><td><a href="【链接】">文件系统为什么需要页缓存</a><div class="sub">从一次 stat 系统调用往下追，看数据在哪几层被复制</div></td></tr>
+          <tr class="item" data-cat="phy"><td class="nowrap">10-05</td><td>Phy</td><td><a href="【链接】">最小作用量原理的三种表述</a><div class="sub">牛顿、拉格朗日、哈密顿在同一个单摆上各自说了什么</div></td></tr>
+          <tr class="item" data-cat="math"><td class="nowrap">09-28</td><td>Math</td><td><a href="【链接】">从平均变化率到导数</a><div class="sub">极限不是把分母取零；顺手把微积分基本定理的条件写清楚</div></td></tr>
+          <tr class="item" data-cat="ai"><td class="nowrap">09-15</td><td>AI</td><td><a href="【链接】">扩散模型的条件生成</a><div class="sub">classifier guidance 那一步在梯度场里到底改变了什么</div></td></tr>
+          <tr class="item" data-cat="cs"><td class="nowrap">09-02</td><td>CS</td><td><a href="【链接】">编译一个 C++ 文件发生了多少事</a><div class="sub">预处理、编译、汇编、链接，以及为什么模板报错这么难读</div></td></tr>
+          <tr class="item" data-cat="phy"><td class="nowrap">08-20</td><td>Phy</td><td><a href="【链接】">玻尔兹曼分布从哪里来</a><div class="sub">用两团可分辨的粒子数一遍微观状态数，再取对数</div></td></tr>
+        </tbody>
+      </table>
+      <p class="empty" id="note-empty" hidden>这一类下还没有条目。</p>
+      <p class="sr-only" id="note-status" aria-live="polite"></p>
+    </div>
   </section>
-
-  <footer>© 2026 朱博 · <a href="./">首页</a> · <a href="work.html">作品</a></footer>
-</main>
 </div>
 </body>
 </html>

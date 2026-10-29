@@ -3,90 +3,84 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="朱博的个人主页：人工智能方向的笔记、推导草稿与写过的一些工具。">
-<title>朱博</title>
+<meta name="description" content="朱博的个人主页：算法竞赛实验室、笔记与写过的一些工具。">
+<title>朱博 · 实验室</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="site.css">
+<script src="theme.js" defer></script>
 <script src="site.js" defer></script>
 <script src="mol.js" defer></script>
 </head>
 <body>
-<a class="skip" href="#main">跳到正文</a>
+<header>
+  <span class="chtag">phenolforever</span>
+  <h1>朱博 · 上海交通大学 人工智能</h1>
+  <span class="sp"></span>
+  <span class="passcount" id="passcount"></span>
+  <button class="mini" id="btnTheme">暗色</button>
+</header>
 
-<div class="mobbar">
-  <a class="mark" href="./">phenol<i>.</i></a>
-  <nav><a href="notes.html">笔记</a><a href="work.html">作品</a><a href="#contact">联系</a></nav>
-</div>
+<div class="main">
 
-<div class="shell">
-
-<aside class="rail">
-  <a class="mark" href="./">phenol<i>.</i></a>
-  <p class="rail-sub">朱博<br>上海交通大学 · 人工智能</p>
-  <nav>
-    <a href="notes.html">笔记</a>
-    <a href="work.html">作品</a>
-    <a href="#contact">联系</a>
+  <nav class="side">
+    <div class="grp">本站<b>三页</b></div>
+    <a class="it on" href="./"><span class="bx">✓</span><span class="nm">首页</span><span class="st">★</span></a>
+    <a class="it" href="notes.html"><span class="bx"></span><span class="nm">笔记与文件</span><span class="st">★</span></a>
+    <a class="it" href="work.html"><span class="bx"></span><span class="nm">作品</span><span class="st">★</span></a>
+    <div class="grp">实验室<b>本地判题</b></div>
+    <a class="it" href="lab/cpp.html"><span class="bx"></span><span class="nm">C++ 实验室（下）</span><span class="st">114 题</span></a>
+    <a class="it" href="lab/pylab.html"><span class="bx"></span><span class="nm">Python 生活实验室</span><span class="st">334 题</span></a>
+    <a class="it" href="lab/judge.html"><span class="bx"></span><span class="nm">两题评测台</span><span class="st">2 题</span></a>
   </nav>
-</aside>
 
-<main id="main">
-  <h1>在分子、矩阵和编译器之间找同一个结构</h1>
-  <p class="lede">域名里的 phenol 是酚酞的酚。酚酞遇碱会从无色变成品红，这个站的全部配色都取自那一步反应。下面三个分子就是它的说明书——切换、拖 pH。</p>
-
-  <section id="molecule">
-    <div class="sec-head">
-      <h2>三种酚</h2>
-      <span class="sec-note">结构示意</span>
+  <section class="mid">
+    <div class="tabs">
+      <div class="on">自述</div>
     </div>
-    <div class="panel">
-      <div class="panel-top">
-        <div class="tabs" id="tabs" role="tablist" aria-label="选择分子">
-          <span id="tab-pill" aria-hidden="true"></span>
-          <button class="tab" role="tab" id="tab-phenol" aria-selected="true" aria-controls="stage" data-mol="phenol" tabindex="0">苯酚</button>
-          <button class="tab" role="tab" id="tab-catechol" aria-selected="false" aria-controls="stage" data-mol="catechol" tabindex="-1">邻苯二酚</button>
-          <button class="tab" role="tab" id="tab-phenolp" aria-selected="false" aria-controls="stage" data-mol="phenolphthalein" tabindex="-1">酚酞</button>
-        </div>
-        <span class="panel-formula" id="formula">C₆H₅OH</span>
+    <div class="pane prose">
+      <div class="badges">
+        <span class="badge mono">StandingWave0807</span>
+        <span class="badge">方向：蛋白质设计 · 算法</span>
+        <span class="badge">上海</span>
       </div>
-      <div class="stage" id="stage" role="tabpanel" aria-labelledby="tab-phenol" tabindex="-1"></div>
-      <p class="panel-note" id="mol-note"></p>
-      <div class="ph" id="ph" hidden>
-        <label for="ph-range">pH</label>
-        <input id="ph-range" type="range" min="0" max="14" step="0.1" value="7" aria-describedby="ph-out">
-        <span class="swatch" id="ph-swatch" aria-hidden="true"></span>
-        <output id="ph-out" for="ph-range"></output>
-      </div>
+      <h2 class="pt">在分子、矩阵和编译器之间找同一个结构</h2>
+      <p>这里放着两类东西：一套自己用的算法竞赛实验室，和它的讲义、题单、推导草稿。实验室的界面是三栏的——左边选题，中间读题，右边写代码；判题要调本机编译器，所以页面里那些「提交」按钮需要你先起本地的评测服务，读题、看讲义和参考解不需要。</p>
+      <p>域名里的 <code>phenol</code> 是酚酞的酚。酚酞遇碱从无色变品红，右边那三个分子就是这件事的说明书——可以切换分子、拖 pH。</p>
+      <h4>入口</h4>
+      <a class="lab-link" href="notes.html">笔记与文件<span class="sub"> · CS / AI / Math / Phy</span><span class="arrow">→</span></a>
+      <a class="lab-link" href="work.html">作品<span class="sub"> · 在写的和停掉的</span><span class="arrow">→</span></a>
+      <a class="lab-link" href="lab/cpp.html">C++ 实验室（下）<span class="sub"> · 第 9–16 章，114 题</span><span class="arrow">→</span></a>
+      <a class="lab-link" href="lab/pylab.html">Python 生活实验室<span class="sub"> · 第 1–17 章，334 题</span><span class="arrow">→</span></a>
+      <h4>联系</h4>
+      <p><a href="mailto:【邮箱】">【邮箱】</a> · <a href="https://github.com/StandingWave0807">GitHub</a></p>
+      <blockquote>实验室的判分口径写在题面旁边：行尾空白和末尾空行不算差异，其余逐字符比对。没有内存限制，也没有沙箱——它是练习器，不是比赛。</blockquote>
     </div>
   </section>
 
-  <section id="elsewhere">
-    <div class="sec-head">
-      <h2>里面有什么</h2>
-      <span class="sec-note">两页</span>
+  <section class="right">
+    <div class="edbar"><span class="fn">三种酚</span><span class="saved" id="formula">C₆H₅OH</span></div>
+    <div class="tabs" id="tabs" role="tablist" aria-label="选择分子">
+      <span id="tab-pill" aria-hidden="true"></span>
+      <button class="tab" role="tab" id="tab-phenol" aria-selected="true" aria-controls="stage" data-mol="phenol" tabindex="0">苯酚</button>
+      <button class="tab" role="tab" id="tab-catechol" aria-selected="false" aria-controls="stage" data-mol="catechol" tabindex="-1">邻苯二酚</button>
+      <button class="tab" role="tab" id="tab-phenolp" aria-selected="false" aria-controls="stage" data-mol="phenolphthalein" tabindex="-1">酚酞</button>
     </div>
-    <ul class="list">
-      <li class="item"><a href="notes.html">
-        <span class="meta">notes</span><span class="tag">Files</span>
-        <span class="title"><span>笔记与文件 · CS / AI / Math / Phy</span></span>
-      </a></li>
-      <li class="item"><a href="work.html">
-        <span class="meta">work</span><span class="tag">Code</span>
-        <span class="title"><span>作品 · 在写的和停掉的</span></span>
-      </a></li>
-    </ul>
+    <div class="stage" id="stage" role="tabpanel" aria-labelledby="tab-phenol" tabindex="-1"></div>
+    <p class="panelnote" id="mol-note"></p>
+    <div class="ph" id="ph" hidden>
+      <label for="ph-range">pH</label>
+      <input id="ph-range" type="range" min="0" max="14" step="0.1" value="7" aria-describedby="ph-out">
+      <span class="swatch" id="ph-swatch" aria-hidden="true"></span>
+      <output id="ph-out" for="ph-range"></output>
+    </div>
   </section>
 
-  <section id="contact">
-    <div class="sec-head"><h2>Contact</h2></div>
-    <p class="contact">
-      <a href="mailto:【邮箱】">【邮箱】</a> ·
-      <a href="https://github.com/StandingWave0807">GitHub</a>
-    </p>
-  </section>
-
-  <footer>© 2026 朱博 · <a href="notes.html">笔记</a> · <a href="work.html">作品</a></footer>
-</main>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var el = document.getElementById('passcount');
+  if (el) el.textContent = '结构示意 · 拖 pH 看变色';
+});
+</script>
 </body>
 </html>

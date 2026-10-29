@@ -7,76 +7,56 @@
 <title>作品 · 朱博</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="site.css">
+<script src="theme.js" defer></script>
 </head>
-<body>
-<a class="skip" href="#main">跳到正文</a>
-
-<div class="mobbar">
-  <a class="mark" href="./">phenol<i>.</i></a>
-  <nav><a href="notes.html">笔记</a><a href="work.html">作品</a><a href="./#contact">联系</a></nav>
-</div>
-
-<div class="shell">
-
-<aside class="rail">
-  <a class="mark" href="./">phenol<i>.</i></a>
-  <p class="rail-sub">朱博<br>上海交通大学 · 人工智能</p>
-  <nav>
-    <a href="notes.html">笔记</a>
-    <a href="work.html" aria-current="page">作品</a>
-    <a href="./#contact">联系</a>
-  </nav>
-</aside>
-
-<main id="main">
+<body class="bookmode">
+<header>
+  <span class="chtag">work</span>
   <h1>作品</h1>
-  <p class="lede">写出来还在维护的放在上面，停掉的放在下面。停掉的原因通常比进展更值得写。</p>
+  <span class="sp"></span>
+  <span class="passcount">在写 3 · 停掉 2</span>
+  <button class="mini" id="btnTheme">暗色</button>
+</header>
 
-  <section id="open">
-    <div class="sec-head">
-      <h2>在写的</h2>
-      <span class="sec-note">3</span>
+<div class="main">
+  <nav class="side">
+    <div class="grp">本站<b>三页</b></div>
+    <a class="it" href="./"><span class="bx"></span><span class="nm">首页</span><span class="st">★</span></a>
+    <a class="it" href="notes.html"><span class="bx"></span><span class="nm">笔记与文件</span><span class="st">★</span></a>
+    <a class="it on" href="work.html"><span class="bx">✓</span><span class="nm">作品</span><span class="st">★</span></a>
+    <div class="grp">实验室<b>本地判题</b></div>
+    <a class="it" href="lab/cpp.html"><span class="bx"></span><span class="nm">C++ 实验室（下）</span><span class="st">114 题</span></a>
+    <a class="it" href="lab/pylab.html"><span class="bx"></span><span class="nm">Python 生活实验室</span><span class="st">334 题</span></a>
+    <a class="it" href="lab/judge.html"><span class="bx"></span><span class="nm">两题评测台</span><span class="st">2 题</span></a>
+  </nav>
+
+  <section class="mid">
+    <div class="tabs">
+      <div class="on">在写的</div>
+      <div><a href="#closed" style="color:inherit">停掉的</a></div>
     </div>
-    <ul class="list">
-      <li class="item work-row"><a href="【仓库链接】">
-        <span class="meta">2026→</span>
-        <span class="title"><span>FolderX</span></span>
-        <span class="meta">TypeScript</span>
-      </a></li>
-      <li class="item work-row"><a href="【仓库链接】">
-        <span class="meta">2026→</span>
-        <span class="title"><span>算法教程与题单</span></span>
-        <span class="meta">Markdown</span>
-      </a></li>
-      <li class="item work-row"><a href="【仓库链接】">
-        <span class="meta">2026→</span>
-        <span class="title"><span>线性代数讲义</span></span>
-        <span class="meta">LaTeX</span>
-      </a></li>
-    </ul>
-  </section>
+    <div class="pane prose">
+      <p>写出来还在维护的放在上面，停掉的放在下面。停掉的原因通常比进展更值得写。技术栈和状态都是草稿，点进去以仓库为准。</p>
+      <table>
+        <thead><tr><th>状态</th><th>名称</th><th>说明</th><th>栈</th></tr></thead>
+        <tbody>
+          <tr><td class="nowrap">在写</td><td><a href="【仓库链接】">FolderX</a></td><td>桌面文件管理工具。做它的起因是我记不住自己把东西塞进了哪个目录</td><td class="nowrap">TypeScript</td></tr>
+          <tr><td class="nowrap">在写</td><td><a href="【仓库链接】">算法教程与题单</a></td><td>按考察机制重排的讲义，配分章节题单；每一节都要能自己走一遍例子</td><td class="nowrap">Markdown</td></tr>
+          <tr><td class="nowrap">在写</td><td><a href="【仓库链接】">线性代数讲义</a></td><td>从线性方程组推到 Jordan 标准形；只给提示不给答案</td><td class="nowrap">LaTeX</td></tr>
+        </tbody>
+      </table>
 
-  <section id="closed">
-    <div class="sec-head">
-      <h2>停掉的</h2>
-      <span class="sec-note">2</span>
+      <h4 id="closed">停掉的</h4>
+      <table>
+        <tbody>
+          <tr><td class="nowrap">已停</td><td><a href="【仓库链接】">QQ 群机器人</a></td><td>接了几个数据源做自动回复，后来发现维护成本都在数据源的接口变动上</td><td class="nowrap">Python</td></tr>
+          <tr><td class="nowrap">已交付</td><td><a href="【仓库链接】">HPC 竞赛入门手册</a></td><td>给校内集训队写的工具链手册与题单，写完发完，不再更新</td><td class="nowrap">Markdown</td></tr>
+        </tbody>
+      </table>
+
+      <blockquote>实验室的两个页面（C++ 与 Python）也是这里的作品，只是它们各自是一个自包含的 HTML，判题需要本机编译器，所以放在「实验室」那一组里。</blockquote>
     </div>
-    <ul class="list">
-      <li class="item work-row"><a href="【仓库链接】">
-        <span class="meta">2025</span>
-        <span class="title"><span>QQ 群机器人</span></span>
-        <span class="meta">Python</span>
-      </a></li>
-      <li class="item work-row"><a href="【仓库链接】">
-        <span class="meta">2025</span>
-        <span class="title"><span>HPC 竞赛入门手册</span></span>
-        <span class="meta">Markdown</span>
-      </a></li>
-    </ul>
   </section>
-
-  <footer>© 2026 朱博 · <a href="./">首页</a> · <a href="notes.html">笔记</a></footer>
-</main>
 </div>
 </body>
 </html>

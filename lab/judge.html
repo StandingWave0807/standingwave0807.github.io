@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>两题评测台</title>
+<style>
+  :root{
+    --bg:#12151a; --panel:#1a1f27; --panel2:#212837; --line:#2c3444;
+    --fg:#dfe5ee; --dim:#8b98ad; --acc:#6ea8fe; --ok:#3ddc97; --bad:#ff6b6b;
+    --warn:#ffc857; --mono:ui-monospace,Consolas,"Cascadia Mono","Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.75 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+  header{padding:14px 22px;border-bottom:1px solid var(--line);background:var(--panel);
+         display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{margin:0;font-size:17px;letter-spacing:.5px}
+  header .tag{font-size:12px;color:var(--dim)}
+  #status{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--dim)}
+  #status.bad{color:var(--bad)}
+  nav{display:flex;gap:8px;padding:12px 22px 0}
+  nav button{background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    padding:7px 15px;border-radius:7px 7px 0 0;cursor:pointer;font-size:13px}
+  nav button.on{background:var(--panel);color:var(--fg);border-bottom-color:var(--panel);font-weight:600}
+  main{display:grid;grid-template-columns:minmax(340px,1fr) minmax(420px,1.15fr);
+       gap:16px;padding:16px 22px 30px;align-items:start}
+  @media (max-width:1020px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .card h2{margin:0 0 8px;font-size:15px}
+  .card h3{margin:16px 0 6px;font-size:13px;color:var(--acc);letter-spacing:.4px}
+  .k{font-size:12px;color:var(--dim);margin-bottom:6px}
+  pre.body{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12.5px;
+    background:var(--panel2);border-radius:7px;padding:10px 12px;margin:0}
+  details{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:10px;background:var(--panel2)}
+  details summary{cursor:pointer;color:var(--acc);font-size:13px;user-select:none}
+  details[open] summary{margin-bottom:8px}
+  textarea{width:100%;min-height:340px;background:#0e1116;color:#e8edf6;border:1px solid var(--line);
+    border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;line-height:1.6;resize:vertical;tab-size:4}
+  textarea:focus{outline:none;border-color:var(--acc)}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+  select,input[type=text]{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+    border-radius:7px;padding:7px 10px;font-family:var(--mono);font-size:13px}
+  .btn{background:var(--acc);color:#0b1220;border:0;border-radius:7px;padding:8px 16px;
+    font-size:13px;font-weight:600;cursor:pointer}
+  .btn.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--line);font-weight:400}
+  .btn:disabled{opacity:.45;cursor:progress}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  th{color:var(--dim);font-weight:600;position:sticky;top:0;background:var(--panel)}
+  td.n{font-family:var(--mono);color:var(--dim);width:38px}
+  td.ms{font-family:var(--mono);color:var(--dim);width:58px;text-align:right}
+  tr.pass td.st{color:var(--ok);font-weight:600}
+  tr.fail td.st{color:var(--bad);font-weight:600}
+  tr.err td.st{color:var(--warn);font-weight:600}
+  .verdict{font-size:15px;font-weight:600;margin:4px 0 10px}
+  .verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+  .diff{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .diff pre{margin:0;max-height:260px;overflow:auto;font-family:var(--mono);font-size:12px;
+    background:#0e1116;border-radius:7px;padding:9px 11px;white-space:pre-wrap;word-break:break-all}
+  .diff .lab{font-size:11px;color:var(--dim);margin-bottom:3px}
+  .hint{font-size:12px;color:var(--dim)}
+  .scroll{max-height:520px;overflow:auto}
+  code.i{font-family:var(--mono);background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>两题评测台</h1>
+  <span class="tag">字典序最小的字符串 T ｜ 四象限子矩阵旋转</span>
+  <span class="tag">独立于算法竞赛教程那套题库，代码不出本机</span>
+  <span id="status">连接中…</span>
+</header>
+<nav id="nav"></nav>
+<main>
+  <section id="left"></section>
+  <section id="right"></section>
+</main>
+
+<script>
+const BASE=(location.protocol==='file:'||/^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname))?'':'http://127.0.0.1:8832';
+let DATA = null, CUR = null;
+
+function norm(s){
+  s = String(s == null ? '' : s).replace(/\r\n?/g, '\n');
+  let lines = s.split('\n').map(l => l.replace(/[ \t]+$/, ''));
+  while (lines.length && lines[lines.length - 1] === '') lines.pop();
+  return lines.length ? lines.join('\n') + '\n' : '';
+}
+function esc(s){
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function clip(s, n){
+  s = String(s);
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+function key(pid, lang){ return 't2j:' + pid + ':' + lang; }
+
+const STARTER = {
+  t1: {
+    cpp: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    string s;\n    cin >> s;\n\n\n    return 0;\n}\n',
+    py:  's = input().strip()\n\n\n'
+  },
+  t2: {
+    cpp: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<vector<int>> a(n, vector<int>(n));\n    for (int i = 0; i < n; ++i)\n        for (int j = 0; j < n; ++j) cin >> a[i][j];\n\n\n    return 0;\n}\n',
+    py:  'n = int(input())\na = [list(map(int, input().split())) for _ in range(n)]\n\n\n'
+  }
+};
+
+async function boot(){
+  try{
+    const r = await fetch(BASE+'/cases.json', {cache:'no-store'});
+    DATA = await r.json();
+  }catch(e){
+    document.getElementById('status').className = 'bad';
+    document.getElementById('status').textContent = '读不到 cases.json：' + e;
+    return;
+  }
+  try{
+    const p = await (await fetch(BASE+'/ping')).json();
+    document.getElementById('status').textContent = 'g++ ' + (/g\+\+ [\d.]+/.exec(p.compiler)||[p.compiler])[0]
+      + ' ｜ python ' + p.python + ' ｜ :' + p.port;
+  }catch(e){
+    document.getElementById('status').className = 'bad';
+    document.getElementById('status').textContent = '评测后端未响应';
+  }
+  const nav = document.getElementById('nav');
+  DATA.problems.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.textContent = p.no + ' · ' + p.title;
+    b.onclick = () => show(p.id);
+    b.dataset.pid = p.id;
+    nav.appendChild(b);
+  });
+  show(DATA.problems[0].id);
+}
+
+function show(pid){
+  CUR = DATA.problems.find(p => p.id === pid);
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.pid === pid));
+  renderLeft(); renderRight();
+}
+
+function renderLeft(){
+  const p = CUR;
+  document.getElementById('left').innerHTML = `
+  <div class="card">
+    <h2>${esc(p.no)}　${esc(p.title)}</h2>
+    <h3>任务</h3>
+    <pre class="body">${esc(p.stmt)}</pre>
+    <h3>输入 / 输出</h3>
+    <pre class="body">${esc(p.io)}</pre>
+    <h3>数据范围</h3>
+    <pre class="body">${esc(p.limits)}</pre>
+    <h3>样例</h3>
+    <div class="diff">
+      <div><div class="lab">输入</div><pre>${esc(p.sample_in)}</pre></div>
+      <div><div class="lab">输出</div><pre>${esc(p.sample_out)}</pre></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">提示</h3>
+    <pre class="body">${esc(p.hint)}</pre>
+    <h3>解析</h3>
+    <pre class="body">${esc(p.note)}</pre>
+    <details>
+      <summary>参考解（本机四路校验通过，收起状态不影响评测）</summary>
+      <div class="bar"><span class="hint">C++</span></div>
+      <pre class="body">${esc(p.sol_cpp)}</pre>
+      <div class="bar"><span class="hint">Python</span></div>
+      <pre class="body">${esc(p.sol_py)}</pre>
+    </details>
+  </div>
+  <div class="card">
+    <h3>测试点</h3>
+    <div class="hint">${p.cases.length} 组，期望输出由参考解现跑生成并逐字校验：<br>
+      ${esc(DATA.verified)}。<br>${esc(p.cross_note)}。</div>
+    <div class="scroll" style="margin-top:8px">
+      <table><thead><tr><th class="n">#</th><th>输入</th></tr></thead><tbody>
+      ${p.cases.map((c,i)=>`<tr><td class="n">${i+1}</td><td><code class="i">${esc(clip(c.in.replace(/\n/g,' ⏎ '),88))}</code></td></tr>`).join('')}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
+function renderRight(){
+  const p = CUR;
+  const lang = localStorage.getItem(key(p.id,'lang')) || 'cpp';
+  document.getElementById('right').innerHTML = `
+  <div class="card">
+    <div class="bar">
+      <label>语言
+        <select id="lang">
+          <option value="cpp">C++（g++ -std=c++17 -O2）</option>
+          <option value="py">Python 3</option>
+        </select>
+      </label>
+      <button class="btn ghost" id="fmt">填入骨架</button>
+      <button class="btn ghost" id="clr">清空</button>
+    </div>
+    <textarea id="code" spellcheck="false"></textarea>
+    <div class="bar">
+      <button class="btn" id="sample">只跑样例</button>
+      <button class="btn" id="all">评测全部 ${p.cases.length} 组</button>
+      <span class="hint">单点限时 <input type="text" id="tle" value="2" style="width:44px"> 秒</span>
+    </div>
+    <div id="out"></div>
+  </div>`;
+  document.getElementById('lang').value = lang;
+  document.getElementById('code').value =
+    localStorage.getItem(key(p.id, lang)) || STARTER[p.id][lang];
+  document.getElementById('lang').onchange = e => {
+    const L = e.target.value;
+    localStorage.setItem(key(p.id, 'lang'), L);
+    const ta = document.getElementById('code');
+    localStorage.setItem(key(p.id, L), ta.value);
+    ta.value = localStorage.getItem(key(p.id, L)) || STARTER[p.id][L];
+  };
+  document.getElementById('code').addEventListener('input', e =>
+    localStorage.setItem(key(p.id, document.getElementById('lang').value), e.target.value));
+  document.getElementById('code').addEventListener('keydown', e => {
+    if (e.key === 'Tab'){
+      e.preventDefault();
+      const t = e.target, s = t.selectionStart;
+      t.value = t.value.slice(0, s) + '    ' + t.value.slice(t.selectionEnd);
+      t.selectionStart = t.selectionEnd = s + 4;
+      t.dispatchEvent(new Event('input'));
+    }
+  });
+  document.getElementById('fmt').onclick = () => {
+    document.getElementById('code').value = STARTER[p.id][document.getElementById('lang').value];
+    document.getElementById('code').dispatchEvent(new Event('input'));
+  };
+  document.getElementById('clr').onclick = () => {
+    document.getElementById('code').value = '';
+    document.getElementById('code').dispatchEvent(new Event('input'));
+  };
+  document.getElementById('sample').onclick = () => submit([{in: p.sample_in, out: p.sample_out}], '样例');
+  document.getElementById('all').onclick = () => submit(p.cases, '全部测试点');
+}
+
+async function submit(cases, label){
+  const out = document.getElementById('out');
+  const btns = document.querySelectorAll('#sample,#all');
+  btns.forEach(b => b.disabled = true);
+  out.innerHTML = '<div class="hint">正在编译并运行 ' + cases.length + ' 组…</div>';
+  let res;
+  try{
+    const r = await fetch(BASE+'/run', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({lang: document.getElementById('lang').value,
+                            code: document.getElementById('code').value,
+                            tests: cases.map(c => c.in),
+                            tle_s: parseFloat(document.getElementById('tle').value) || 2})});
+    res = await r.json();
+  }catch(e){
+    out.innerHTML = '<div class="verdict bad">评测台没应答：' + esc(String(e)) + '</div>';
+    btns.forEach(b => b.disabled = false); return;
+  }
+  btns.forEach(b => b.disabled = false);
+  if (!res.ok) { out.innerHTML = '<div class="verdict bad">' + esc(res.error || '未知错误') + '</div>'; return; }
+  if (!res.compile.ok){
+    out.innerHTML = '<div class="verdict bad">编译 / 语法未通过</div>' +
+                    '<pre class="body">' + esc(clip(res.compile.log, 6000)) + '</pre>';
+    return;
+  }
+  const rows = cases.map((c, i) => {
+    const g = res.run[i] || {};
+    const got = norm(g.out);
+    const exp = norm(c.out);
+    let st = '运行错误';
+    if (g.tle) st = '超时';
+    else if (got === exp) st = '通过';
+    else if (g.rc !== 0 && g.rc !== null) st = (g.rc === 1 ? '答案错误' : '运行错误');
+    else st = '答案错误';
+    return {i, c, g, st, got, exp};
+  });
+  const pass = rows.filter(r => r.st === '通过').length;
+  const firstBad = rows.find(r => r.st !== '通过');
+  const cls = pass === rows.length ? 'ok' : 'bad';
+  out.innerHTML = `
+    <div class="verdict ${cls}">${label}：${pass} / ${rows.length} 通过${pass===rows.length?'　✓ 全对':''}</div>
+    ${firstBad ? `<div class="diff">
+        <div><div class="lab">第 ${firstBad.i+1} 组 · 期望</div><pre>${esc(clip(firstBad.exp, 3000))}</pre></div>
+        <div><div class="lab">你的输出${firstBad.g.tle?'（超时）':''}</div><pre>${esc(clip(firstBad.g.tle?'':(firstBad.got || firstBad.g.err || '（空输出）'), 3000))}</pre></div>
+      </div>` : ''}
+    <div class="scroll" style="margin-top:12px">
+    <table><thead><tr><th class="n">#</th><th>结果</th><th>输入</th><th>你的输出</th><th class="ms">ms</th></tr></thead>
+    <tbody>${rows.map(r => `<tr class="${r.st==='通过'?'pass':'fail'}">
+      <td class="n">${r.i+1}</td><td class="st">${r.st}</td>
+      <td><code class="i">${esc(clip(r.c.in.replace(/\n/g,' ⏎ '),40))}</code></td>
+      <td><code class="i">${esc(clip(norm(r.g.out).replace(/\n/g,' ⏎ ') || (r.g.err||'').replace(/\n/g,' ⏎ ') || '（空）',60))}</code></td>
+      <td class="ms">${r.g.ms||''}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+boot();
+</script>
+</body>
+</html>
