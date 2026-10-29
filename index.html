@@ -8,6 +8,7 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="site.css">
 <script src="theme.js" defer></script>
+<script src="clock.js" defer></script>
 </head>
 <body class="bookmode">
 <header>
@@ -39,6 +40,22 @@
       </div>
       <h2 class="pt">在分子、矩阵和编译器之间找同一个结构</h2>
       <p>这里放着两类东西：一套自己用的算法竞赛实验室，和它的讲义、题单、推导草稿。实验室的界面是三栏的——左边选题，中间读题，右边写代码；判题要调本机编译器，所以页面里那些「提交」按钮需要你先起本地的评测服务，读题、看讲义和参考解不需要。</p>
+      <h4>此刻</h4>
+      <div class="clock">
+        <div class="now"><span class="t mono" id="clk-time">--:--:--</span><span class="d" id="clk-date">—</span><span class="d" id="clk-zone">UTC</span></div>
+        <div class="u"><b class="mono" id="cd-d">–</b><span id="cd-label">倒计时</span></div>
+        <div class="u"><b class="mono" id="cd-h">--</b><span>时</span></div>
+        <div class="u"><b class="mono" id="cd-m">--</b><span>分</span></div>
+        <div class="u"><b class="mono" id="cd-s">--</b><span>秒</span></div>
+      </div>
+      <div class="cdbar">
+        <label>目标 <input type="datetime-local" id="cd-input"></label>
+        <label>名称 <input type="text" id="cd-label-input" maxlength="12" size="8"></label>
+        <button id="cd-reset">重置为新年</button>
+        <span id="cd-done" hidden></span>
+        <a href="https://time.is/" target="_blank" rel="noopener noreferrer">time.is 对时</a>
+      </div>
+
       <h4>入口</h4>
       <a class="lab-link" href="notes.html">笔记与文件<span class="sub"> · CS / AI / Math / Phy</span><span class="arrow">→</span></a>
       <a class="lab-link" href="work.html">作品<span class="sub"> · 在写的和停掉的</span><span class="arrow">→</span></a>

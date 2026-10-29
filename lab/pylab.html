@@ -180,7 +180,7 @@ async function load(){
   try{const r=await fetch('/ping',{cache:'no-store'});server=r.ok&&(await r.text())==='pylab'}catch(e){server=false}
   if(server){try{const r=await fetch('/api/progress');const j=await r.json();if(j&&j.code)Object.assign(S,j)}catch(e){}
     setInterval(()=>fetch('/ping').catch(()=>{}),30000);}
-  else{const b=$('#banner');b.textContent='离线阅读模式：题面、讲解、参考思路都能看，但判题需要双击「启动实验室.pyw」——它会在本机调用你的 python 解释器运行代码。';b.classList.add('show')}
+  else{const b=$('#banner');b.textContent='离线阅读模式：题面、讲解、参考思路都能看。判题要在本机调用 Python 解释器，当前没连上判题服务。';b.classList.add('show')}
 }
 
 function stars(n){return '★'.repeat(n)}
@@ -346,7 +346,7 @@ async function runCase(i,inp,tl){
     {method:'POST',body:inp||''});
   return r.json();
 }
-function needServer(){if(server)return true;showRes(`<div class="vt"><span class="big ce">无法评测</span></div><div class="note">当前是离线阅读模式。请双击 <b>启动实验室.pyw</b> 启动，它会在本机调用 Python 运行你的代码。</div>`);return false}
+function needServer(){if(server)return true;showRes(`<div class="vt"><span class="big ce">无法评测</span></div><div class="note">当前是离线阅读模式，没有连上本机判题服务，暂时无法运行。</div>`);return false}
 function showRes(h){const r=$('#result');r.innerHTML=h;r.classList.add('show')}
 function ceView(j){
   if(j.nopython)return `<div class="vt"><span class="big ce">未找到解释器</span></div><div class="note">请先在右上角「解释器设置」里填 python.exe 的位置。</div>`;
@@ -358,7 +358,7 @@ async function submit(){
   if(!cur||busy||!needServer())return;
   persistCode();busy=true;setBusy(true);
   const p=cur;showRes(`<div class="vt"><span class="big run">检查语法…</span></div>`);
-  let j;try{j=await compileNow()}catch(e){busy=false;setBusy(false);showRes(`<div class="vt"><span class="big ce">连接失败</span></div><div class="note">本地评测服务已关闭。请重新打开 启动实验室.pyw。</div>`);return}
+  let j;try{j=await compileNow()}catch(e){busy=false;setBusy(false);showRes(`<div class="vt"><span class="big ce">连接失败</span></div><div class="note">本地判题服务已关闭，评测暂时不可用。</div>`);return}
   if(!j.ok){busy=false;setBusy(false);showRes(ceView(j));return}
   lastRun=new Array(p.n_tests).fill(null);renderCells(p,'评测中…');
   for(let i=0;i<p.n_tests;i++){
@@ -414,7 +414,7 @@ async function runCustom(){
   if(!needServer())return;
   persistCode();busy=true;setBusy(true);
   const inp=$('#cin').value;$('#cout').value='检查语法…';
-  let j;try{j=await compileNow()}catch(e){busy=false;setBusy(false);$('#cout').value='本地评测服务已关闭，请重新打开 启动实验室.pyw';return}
+  let j;try{j=await compileNow()}catch(e){busy=false;setBusy(false);$('#cout').value='本地判题服务已关闭，评测暂时不可用';return}
   if(!j.ok){busy=false;setBusy(false);showRes(ceView(j));return}
   $('#cout').value='运行中…';
   const r=await (await fetch('/api/custom?job='+encodeURIComponent(job||'')+'&tl='+Math.max(cur.tl,3000),
@@ -435,7 +435,7 @@ $('#btnSubmit').onclick=submit;
 
 async function openCfg(){
   const m=$('#modal');$('#mask').classList.add('show');
-  if(!server){m.innerHTML=`<h3>解释器设置</h3><p>当前为离线阅读模式，没有连接到本地评测服务。请双击 <b>启动实验室.pyw</b> 后再设置。</p><div class="row"><button data-x="close">关闭</button></div>`;return}
+  if(!server){m.innerHTML=`<h3>解释器设置</h3><p>当前为离线阅读模式，没有连接到本机判题服务，暂时改不了解释器选项。</p><div class="row"><button data-x="close">关闭</button></div>`;return}
   m.innerHTML='<h3>解释器设置</h3><p>读取中…</p>';
   const c=await (await fetch('/api/config')).json();
   const det=c.detected.length?c.detected.map(d=>`<button data-pick="${esc(d)}">${esc(d)}</button>`).join(''):'<span class="empty">没有在常见位置找到 python.exe。</span>';
