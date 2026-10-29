@@ -39,7 +39,7 @@
         <span class="badge">上海</span>
       </div>
       <h2 class="pt">在分子、矩阵和编译器之间找同一个结构</h2>
-      <p>这里放着两类东西：一套自己用的算法竞赛实验室，和它的讲义、题单、推导草稿。实验室的界面是三栏的——左边选题，中间读题，右边写代码；判题要调本机编译器，所以页面里那些「提交」按钮需要你先起本地的评测服务，读题、看讲义和参考解不需要。</p>
+      <p>这里放着两类东西：一套自己用的算法竞赛实验室，和它的讲义、题单、推导草稿。实验室的界面是三栏的——左边选题，中间读题，右边写代码；判题调用的是你机器上的编译器，所以「提交」要先起本机的判题服务（下面有包），读题、看讲义和参考解不需要。</p>
       <h4>此刻</h4>
       <div class="clock">
         <div class="now"><span class="t mono" id="clk-time">--:--:--</span><span class="d" id="clk-date">—</span><span class="d" id="clk-zone">UTC</span></div>
@@ -74,6 +74,8 @@
       <a class="lab-link" href="work.html">作品<span class="sub"> · 在写的和停掉的</span><span class="arrow">→</span></a>
       <a class="lab-link" href="lab/cpp.html">C++ 实验室<span class="sub"> · 第 6–16 章，170 题</span><span class="arrow">→</span></a>
       <a class="lab-link" href="lab/pylab.html">Python 生活实验室<span class="sub"> · 第 1–17 章，334 题</span><span class="arrow">→</span></a>
+      <h4>判题</h4>
+      <p>「提交」调的是你自己机器上的 g++：<a class="btnlink" href="lab/kit/cpplab-kit.zip" download>判题服务包</a> 解压后双击 <code>start.cmd</code>，回到浏览器就能编译运行。它只监听 127.0.0.1，代码不出这台机器；页面本身仍从本站打开，读题、讲义、参考解都不需要它。没装编译器就用实验室右上角的「在线判题」，那一档走 wandbox.org。</p>
       <h4>联系</h4>
       <p><a class="btnlink" href="mailto:【邮箱】">邮箱</a> <a class="btnlink" href="https://github.com/StandingWave0807">GitHub</a></p>
       <blockquote>实验室的判分口径写在题面旁边：行尾空白和末尾空行不算差异，其余逐字符比对。没有内存限制，也没有沙箱——它是练习器，不是比赛。</blockquote>
