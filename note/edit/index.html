@@ -13,6 +13,7 @@
 <script src="/picker.js" defer></script>
 <script src="/assets/katex/katex.min.js" defer></script>
 <script src="/assets/katex/auto-render.min.js" defer></script>
+<script src="/assets/cm/lab-editor.js" defer></script>
 <script src="/edit.js" defer></script>
 </head>
 <body class="bookmode editmode">
@@ -78,10 +79,16 @@
 
     <section class="ed-mid">
       <div class="ed-tools" id="ed-tools"></div>
-      <textarea id="f-body" class="ed-body" spellcheck="false"
-        placeholder="正文写 Markdown，公式用 $...$ 或 $$...$$"></textarea>
-      <div class="ed-hint">预览 —— 与线上同一套渲染</div>
-      <div class="ed-preview prose" id="ed-preview"><p class="note">左边写字，这里就是线上样子。</p></div>
+      <div class="ed-row">
+        <div id="f-body" class="ed-body"></div>
+        <div class="ed-vsplit" id="ed-split" role="separator" aria-orientation="vertical"
+          tabindex="0" title="左右拖动分配宽度，双击复位"></div>
+        <div class="ed-pv">
+          <div class="ed-hint">预览 —— 与线上同一套渲染</div>
+          <div class="ed-preview prose" id="ed-preview"><p class="note">左边写字，这里就是线上样子。</p></div>
+        </div>
+      </div>
+      <div class="ed-stat" id="ed-stat"></div>
     </section>
   </div>
 

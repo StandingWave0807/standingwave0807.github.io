@@ -20,6 +20,9 @@
     title: $("f-title"), date: $("f-date"), sub: $("f-sub"), slug: $("f-slug"),
     body: $("f-body")
   };
+  var ed = null;                       /* CodeMirror 实例 */
+  function bodyText() { return ed ? ed.getValue() : ""; }
+  function setBody(t) { if (ed) ed.setValue(t); }
   var list = $("ed-list"), status = $("ed-status"), msg = $("ed-msg"), preview = $("ed-preview");
   var state = { notes: [], drafts: {}, slug: null, key: null, dirty: false };
   var tDraft = null, tPreview = null;
@@ -75,19 +78,25 @@
         title: f.title.value.trim(), date: f.date.value.trim(), cat: pickedCat(),
         sub: f.sub.value.trim(), slug: f.slug.value.trim(), tags: tagList()
       },
-      body: f.body.value
+      body: bodyText()
     };
   }
 
   function fill(meta, body) {
+    loading = true;
     f.title.value = meta.title || "";
     f.date.value = meta.date || "";
     f.sub.value = meta.sub || "";
     f.slug.value = meta.slug || "";
-    f.body.value = body || "";
+    setBody(body || "");
     setCat(meta.cat || "math");
     setTags(meta.tags || []);
+    loading = false;
   }
+
+  /* 程序化填内容也会触发编辑器的 change，不能当成"用户改了东西"，
+     否则光是打开一条笔记就会凭空生成一份草稿 */
+  var loading = false;
 
   /* ---------------------------------------------------------------- 学科 chips */
   function catBox() { return $("ed-cats"); }
@@ -154,7 +163,7 @@
 
   function previewNow() {
     if (!state.key) return;
-    api("/api/render", { method: "POST", body: JSON.stringify({ body: f.body.value }) })
+    api("/api/render", { method: "POST", body: JSON.stringify({ body: bodyText() }) })
       .then(function (j) {
         preview.innerHTML = j.html;
         if (window.renderMathInElement) {
@@ -186,6 +195,8 @@
     return api("/api/draft", { method: "POST", body: JSON.stringify({ slug: c.slug, md: md }) })
       .then(function () {
         state.drafts[c.slug] = Date.now();
+        /* 草稿落盘了就不算"没存"，别在离开时拦人；只有没 slug 或存失败才拦 */
+        state.dirty = false;
         if (!quiet) say("草稿已存进本机（仓库外）", "ok");
         paintList();
       })
@@ -199,6 +210,7 @@
   }
 
   function touched() {
+    if (loading) return;
     state.dirty = true;
     validate();
     schedulePreview();
@@ -240,6 +252,7 @@
         validate();
         previewNow();
         paintList();
+        stat();
       }).catch(function (e) { say("打不开这条：" + e.message, "bad"); });
     };
     if (keep) {
@@ -263,29 +276,35 @@
 
   /* ------------------------------------------------------------------ 工具条 */
   function wrap(before, after, placeholder) {
-    var el = f.body, s = el.selectionStart, e = el.selectionEnd;
-    var sel = el.value.slice(s, e) || placeholder || "";
-    el.value = el.value.slice(0, s) + before + sel + after + el.value.slice(e);
-    el.focus();
-    el.selectionStart = s + before.length;
-    el.selectionEnd = s + before.length + sel.length;
+    if (!ed) return;
+    ed.wrap(before, after, placeholder);
+    touched();
+  }
+  function block(before, body, after) {
+    if (!ed) return;
+    ed.block(before, body, after);
+    touched();
+  }
+  function prefix(p) {
+    if (!ed) return;
+    ed.prefixLines(p);
     touched();
   }
 
+  var B = String.fromCharCode(92);   /* 反斜杠，公式里要用 */
   var TOOLS = [
     { k: "B", t: "加粗", run: function () { wrap("**", "**", "粗体"); } },
     { k: "I", t: "斜体", run: function () { wrap("_", "_", "斜体"); } },
     { k: "Tt", t: "行内代码", run: function () { wrap("`", "`", "code"); } },
-    { k: "▤", t: "代码块", run: function () { wrap("\n```cpp\n", "\n```\n", "// code\n"); } },
-    { k: "∑", t: "行内公式", run: function () { wrap("$", "$", "A v = \\lambda v"); } },
-    { k: "≡", t: "整段公式", run: function () { wrap("\n$$\n", "\n$$\n", "Q^{T}AQ = \\Lambda"); } },
+    { k: "▤", t: "代码块", run: function () { block("\n```cpp\n", "// 代码\n", "```\n"); } },
+    { k: "∑", t: "行内公式", run: function () { wrap("$", "$", "A v = " + B + "lambda v"); } },
+    { k: "≡", t: "整段公式", run: function () { block("\n$$\n", "Q^{" + B + "T}AQ = " + B + "Lambda", "\n$$\n"); } },
     { k: "↗", t: "链接", run: function () { wrap("[", "](https://)", "文字"); } },
-    { k: "❞", t: "引用", run: function () { wrap("\n> ", "", "引文"); } },
-    { k: "•", t: "列表", run: function () { wrap("\n- ", "", "一项"); } },
-    { k: "▦", t: "表格骨架", run: function () {
-        wrap("\n|  |  |  |\n|---|---|---|\n|  |  |  |\n", "", "");
-      } },
-    { k: "▣", t: "图片路径", run: function () { wrap("![", "](/assets/)", "说明"); } }
+    { k: "❞", t: "引用", run: function () { prefix("> "); } },
+    { k: "•", t: "无序列表", run: function () { prefix("- "); } },
+    { k: "1.", t: "有序列表", run: function () { prefix("1. "); } },
+    { k: "▦", t: "表格骨架", run: function () { block("\n| 列 | 列 | 列 |\n|---|---|---|\n| ", "a | b | c", " |\n"); } },
+    { k: "▣", t: "图片（先传到仓库 assets/）", run: function () { wrap("![", "](/assets/)", "说明"); } }
   ];
 
   function paintTools() {
@@ -380,29 +399,105 @@
     } else showLock("");
   }
 
+  /* ---------------------------------------------------------------- 分隔条 */
+  var RKEY = "lab-ed-split";
+  function pvCol() { return document.querySelector(".ed-pv"); }
+  function ratio() {
+    var row = document.querySelector(".ed-row").getBoundingClientRect();
+    var r = f.body.getBoundingClientRect();
+    return row.width ? (r.left - row.left + r.width) / row.width : 0.5;
+  }
+  function setRatio(r) {
+    r = Math.min(0.82, Math.max(0.18, r));
+    f.body.style.flex = "1 1 " + (r * 100).toFixed(2) + "%";
+    pvCol().style.flex = "1 1 " + ((1 - r) * 100).toFixed(2) + "%";
+    try { localStorage.setItem(RKEY, String(r)); } catch (e) {}
+  }
+  function resetRatio() {
+    f.body.style.flex = "";
+    pvCol().style.flex = "";
+    try { localStorage.removeItem(RKEY); } catch (e) {}
+  }
+  function setupSplit() {
+    var bar = $("ed-split"), drag = false;
+    var saved = null;
+    try { saved = parseFloat(localStorage.getItem(RKEY)); } catch (e) {}
+    if (saved > 0.18 && saved < 0.82) setRatio(saved);
+    bar.addEventListener("pointerdown", function (e) {
+      drag = true;
+      bar.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    bar.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var row = document.querySelector(".ed-row").getBoundingClientRect();
+      setRatio((e.clientX - row.left) / row.width);
+    });
+    bar.addEventListener("pointerup", function (e) {
+      drag = false;
+      try { bar.releasePointerCapture(e.pointerId); } catch (_) {}
+    });
+    bar.addEventListener("pointercancel", function () { drag = false; });
+    bar.addEventListener("dblclick", resetRatio);
+    bar.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") { e.preventDefault(); setRatio(ratio() - 0.05); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); setRatio(ratio() + 0.05); }
+      else if (e.key === "Enter") { e.preventDefault(); resetRatio(); }
+    });
+  }
+
+  /* 窗口窄到放不下两栏时，换成一个切换按钮 */
+  function setupPvToggle() {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "ed-only";
+    b.textContent = "预览";
+    b.onclick = function () {
+      var on = document.body.classList.toggle("ed-showpv");
+      b.textContent = on ? "正文" : "预览";
+      if (on) previewNow();
+    };
+    $("ed-tools").appendChild(b);
+  }
+
+  /* ---------------------------------------------------------------- 状态行 */
+  function stat(c) {
+    if (!ed) return;
+    c = c || ed.cursor();
+    var v = bodyText();
+    var lines = v.split("\n").length;
+    var blocks = (v.match(/^\s{0,3}(#{2,3}\s|>\s|-{3,}\s|\|)/gm) || []).length;
+    var math = (v.match(/\$\$/g) || []).length >> 1;
+    $("ed-stat").textContent = "第 " + c.line + " 行 第 " + c.col + " 列 · " + v.length +
+      " 字符 · " + lines + " 行 · 整段公式 " + math + " 处";
+  }
+
   /* ------------------------------------------------------------------ 装配 */
   function boot() {
-    var d = new Date();
     $("ed-cats").querySelectorAll(".chip").forEach(function (b) {
       b.onclick = function () { setCat(b.dataset.cat); touched(); };
     });
     paintTools();
     paintTags();
+    setupSplit();
+    setupPvToggle();
 
     ["title", "date", "sub", "slug"].forEach(function (k) {
       f[k].addEventListener("input", touched);
     });
     f.date.addEventListener("change", touched);
-    f.body.addEventListener("input", touched);
-    f.body.addEventListener("keydown", function (e) {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        var s = this.selectionStart;
-        this.value = this.value.slice(0, s) + "  " + this.value.slice(this.selectionEnd);
-        this.selectionStart = this.selectionEnd = s + 2;
-        touched();
-      }
-    });
+
+    /* 正文交给 CodeMirror：行号槽在软换行时也不会错位，这是自己拼做不到的 */
+    if (window.LabEditor) {
+      ed = window.LabEditor.create(f.body, {
+        doc: "",
+        placeholder: "正文写 Markdown，公式用 $...$ 或 $$...$$",
+        onChange: function () { touched(); },
+        onCursor: function (c) { stat(c); }
+      });
+    } else {
+      stat();
+    }
     $("btn-date").onclick = function () {
       var v = DATERE.test(f.date.value) ? new Date(f.date.value + "T09:00") : new Date();
       window.datePicker($("btn-date"), { value: v, onPick: function (p) {
