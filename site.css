@@ -219,6 +219,8 @@ a{color:inherit;text-decoration:none}
 .dp-ft .dp-ok{background:var(--fg);color:var(--bg);font-weight:700}
 .cdbar button.pick{border:2px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:12px;padding:2px 7px;cursor:pointer;line-height:1.5}
 .cdbar button.pick:hover{background:var(--hover)}
+/* 宽公式在栏内横向滚，不把整页撑出滚动条 */
+.katex-display{overflow-x:auto;overflow-y:hidden;padding:2px 0;margin:1.1em 0}
 .dp button:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
 .dp .dp-ok:focus-visible{outline:2px solid var(--bg);outline-offset:-4px}
 .dp input:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
