@@ -194,3 +194,31 @@ a{color:inherit;text-decoration:none}
 .cdbar input.bad{border-color:var(--bad);background:var(--badbg)}
 .cdbar button.go{border:2px solid var(--line);background:var(--fg);color:var(--bg);font:inherit;font-weight:700;font-size:12.5px;padding:3px 16px;cursor:pointer}
 .cdbar button.go:hover{opacity:.88}
+
+/* 自绘日期时间选择器 */
+.dp{position:fixed;z-index:60;width:272px;background:var(--bg);border:3px solid var(--line);padding:10px;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+.dp-hd{display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.dp-ym{flex:1;text-align:center;font-weight:700;font-size:13.5px}
+.dp-nav{border:2px solid var(--line);background:var(--bg);color:var(--fg);width:26px;height:26px;line-height:1;font-size:13px;cursor:pointer;padding:0}
+.dp-nav:hover{background:var(--hover)}
+.dp-wd,.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dp-wd span{text-align:center;font-size:11px;color:var(--dim);padding:2px 0}
+.dp-d{border:2px solid transparent;background:var(--bg);color:var(--fg);height:30px;font:inherit;font-size:12.5px;cursor:pointer;padding:0}
+.dp-d:hover{border-color:var(--line);background:var(--hover)}
+.dp-d.today{border-color:var(--line)}
+.dp-d.sel{background:var(--fg);color:var(--bg);font-weight:700}
+.dp-time{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px}
+.dp-time label{display:flex;align-items:center;gap:3px}
+.dp-time input{width:3.2em;text-align:center;border:2px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:12px;padding:2px}
+.dp-quick{border:2px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:11.5px;padding:2px 5px;cursor:pointer}
+.dp-quick:hover{background:var(--hover)}
+.dp-ft{display:flex;align-items:center;gap:6px;margin-top:10px}
+.dp-ft .dp-sp{flex:1}
+.dp-ft button{border:2px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:12.5px;padding:3px 12px;cursor:pointer}
+.dp-ft button:hover{background:var(--hover)}
+.dp-ft .dp-ok{background:var(--fg);color:var(--bg);font-weight:700}
+.cdbar button.pick{border:2px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:12px;padding:2px 7px;cursor:pointer;line-height:1.5}
+.cdbar button.pick:hover{background:var(--hover)}
+.dp button:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
+.dp .dp-ok:focus-visible{outline:2px solid var(--bg);outline-offset:-4px}
+.dp input:focus-visible{outline:2px solid var(--fg);outline-offset:1px}

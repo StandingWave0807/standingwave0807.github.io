@@ -8,6 +8,7 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="site.css">
 <script src="theme.js" defer></script>
+<script src="picker.js" defer></script>
 <script src="clock.js" defer></script>
 </head>
 <body class="bookmode">
@@ -59,13 +60,14 @@
         <label class="set">自定义<input class="num" id="tm-min" inputmode="numeric" size="2" value="45">分<input class="num" id="tm-sec" inputmode="numeric" size="2" value="0">秒</label>
         <button class="go" id="tm-start">开始</button>
         <button class="q" id="tm-reset">重置</button>
-        <span id="cd-done" hidden></span>
       </div>
       <div class="cdbar">
         <span class="grp">倒数日</span>
         <label class="set">名称<input class="txt" id="cd-label-input" maxlength="12" size="6"></label>
         <label class="set">目标<input class="txt wide" id="cd-input" placeholder="2027-01-01 00:00" autocomplete="off"></label>
+        <button class="pick" id="cd-pick" title="从日历选择">日历</button>
         <button class="q" id="cd-newyear">到新年</button>
+        <span id="cd-done" hidden></span>
         <a class="btnlink" href="https://time.is/" target="_blank" rel="noopener noreferrer">time.is 对时</a>
       </div>
 

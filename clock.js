@@ -117,20 +117,41 @@
     inputEl.classList.add("bad");
     setTimeout(function () { inputEl.classList.remove("bad"); }, 900);
   }
+  /* 标签没被手动改过时，跟着目标走，免得显示"新年 · 54 天"这种自相矛盾 */
+  var labelAuto = cd.label === "新年" || cd.label === "目标";
+  function setLabel(v, auto) {
+    cd.label = v; labelAuto = !!auto;
+    lbl.value = v; nameEl.textContent = v;
+  }
+  function applyTarget(d) {
+    cd.target = d;
+    inputEl.value = fmtTarget(d);
+    if (labelAuto) setLabel((d.getMonth() + 1) + " 月 " + d.getDate() + " 日", true);
+    saveCd(); tickCd();
+  }
   inputEl.value = fmtTarget(cd.target);
   lbl.value = cd.label;
   nameEl.textContent = cd.label;
   lbl.addEventListener("input", function () {
-    cd.label = lbl.value || "目标"; nameEl.textContent = cd.label; saveCd();
+    setLabel(lbl.value || "目标", false); saveCd();
   });
   inputEl.addEventListener("change", function () {
     var d = parseTarget(inputEl.value);
     if (!d) { reject(); return; }
-    cd.target = d; saveCd(); tickCd();
+    applyTarget(d);
+  });
+  var pickBtn = $("cd-pick");
+  if (pickBtn) pickBtn.addEventListener("click", function () {
+    var cur = parseTarget(inputEl.value) || cd.target;
+    window.datePicker(pickBtn, {
+      value: cur,
+      onPick: function (d) { applyTarget(d); }
+    });
   });
   $("cd-newyear").addEventListener("click", function () {
-    cd.target = newYear(); cd.label = "新年";
-    inputEl.value = fmtTarget(cd.target); lbl.value = cd.label; nameEl.textContent = cd.label;
+    cd.target = newYear();
+    inputEl.value = fmtTarget(cd.target);
+    setLabel("新年", true);
     saveCd(); tickCd();
   });
 
@@ -138,13 +159,19 @@
     var now = new Date();
     clockEl.textContent = pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
     dateEl.textContent = now.getFullYear() + " 年 " + (now.getMonth() + 1) + " 月 " + now.getDate() + " 日 " + WD[now.getDay()];
-    var ms = cd.target - now, over = ms <= 0;
-    if (over) ms = -ms;
-    dEl.textContent = (over ? "+" : "") + Math.floor(ms / 864e5);
-    hEl.textContent = pad(Math.floor(ms / 36e5) % 24);
-    mEl.textContent = pad(Math.floor(ms / 6e4) % 60);
-    sEl.textContent = pad(Math.floor(ms / 1e3) % 60);
+    var ms = cd.target - now, over = ms <= 0, abs = over ? -ms : ms;
+    dEl.textContent = Math.floor(abs / 864e5);
+    hEl.textContent = pad(Math.floor(abs / 36e5) % 24);
+    mEl.textContent = pad(Math.floor(abs / 6e4) % 60);
+    sEl.textContent = pad(Math.floor(abs / 1e3) % 60);
+    /* 过了就只报"过了多久"，时/分/秒继续走没有意义 */
+    hEl.parentElement.hidden = over;
+    mEl.parentElement.hidden = over;
+    sEl.parentElement.hidden = over;
     doneEl.hidden = !over;
+    doneEl.textContent = over
+      ? (Math.floor(abs / 864e5) > 0 ? "已过 " + Math.floor(abs / 864e5) + " 天" : "到点了")
+      : "";
   }
   tickCd();
   setInterval(function () { tickCd(); tickTimer(); }, 200);
