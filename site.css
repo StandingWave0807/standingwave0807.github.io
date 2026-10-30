@@ -221,6 +221,60 @@ a{color:inherit;text-decoration:none}
 .cdbar button.pick:hover{background:var(--hover)}
 /* 宽公式在栏内横向滚，不把整页撑出滚动条 */
 .katex-display{overflow-x:auto;overflow-y:hidden;padding:2px 0;margin:1.1em 0}
+
+/* ---- 笔记编辑面板 ---- */
+body.editmode .main{display:block;overflow:auto}
+.lockcard{max-width:34em;margin:8vh auto;border:3px solid var(--line);padding:26px 30px;background:var(--bg)}
+.lockcard h3{margin:0 0 10px;font-size:20px}
+#ed-lockmsg{color:var(--bad);font-size:13.5px;min-height:1.4em}
+.ed-wrap{display:grid;grid-template-columns:302px 1fr;min-height:100%}
+.ed-side{border-right:2px solid var(--line);padding:12px 16px 60px}
+.ed-side label{display:block;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:11.5px;font-weight:700;color:var(--dim);margin:12px 0 3px;letter-spacing:.02em}
+.ed-side input,.ed-side textarea{width:100%;border:2px solid var(--line);background:var(--bg);color:var(--fg);font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:13.5px;line-height:1.6;padding:5px 8px}
+.ed-side textarea{resize:vertical}
+.ed-side input:focus,.ed-side textarea:focus{outline:2px solid var(--fg);outline-offset:1px}
+.ed-daterow{display:flex;gap:6px}
+.ed-daterow input{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips .chip{border:2px solid var(--line);background:var(--bg);color:var(--fg);font-family:-apple-system,"Segoe UI",sans-serif;font-size:11.5px;font-weight:700;padding:3px 9px;cursor:pointer;border-radius:0}
+.chips .chip:hover{background:var(--hover)}
+.chips .chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.tagbox{border:2px solid var(--line);padding:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.tagbox input{border:0;width:auto;flex:1;min-width:8em;padding:2px 4px}
+.tagbox input:focus{outline:0}
+.tag{display:inline-flex;align-items:center;gap:6px;background:var(--fg);color:var(--bg);font-family:-apple-system,"Segoe UI",sans-serif;font-size:11.5px;padding:2px 6px}
+.tag .x{background:none;border:0;color:var(--bg);cursor:pointer;font-size:13px;line-height:1;padding:0}
+.ed-list{max-height:230px;overflow:auto;border:1px solid var(--soft);margin-bottom:8px}
+.editem{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--soft);background:none;color:var(--fg);font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:13px;padding:5px 8px;cursor:pointer}
+.editem:hover{background:var(--hover)}
+.editem.on{background:var(--fg);color:var(--bg)}
+.editem .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.editem .m{font-size:11px;opacity:.72;white-space:nowrap}
+.editem .d{color:var(--warn)}
+.editem.on .d{color:var(--warnbg)}
+#ed-new,.ed-acts button{border:2px solid var(--line);background:var(--bg);color:var(--fg);font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:13px;font-weight:600;padding:5px 12px;cursor:pointer;border-radius:0}
+#ed-new{width:100%;margin-bottom:4px}
+.ed-acts{display:flex;gap:6px}
+.ed-acts button{flex:1}
+button.pri{background:var(--fg);color:var(--bg)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.ed-msg{font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:12.5px;line-height:1.6;margin:10px 0 0;word-break:break-word}
+.ed-msg.ok{color:var(--ok)}
+.ed-msg.bad{color:var(--bad)}
+.ed-msg.warn{color:var(--warn)}
+#ed-why{color:var(--bad);font-size:12px;margin:8px 0 0}
+.ed-mid{display:flex;flex-direction:column;min-width:0;padding:12px 16px 40px;gap:8px}
+.ed-tools{display:flex;flex-wrap:wrap;gap:3px}
+.ed-tools button{width:31px;height:28px;border:2px solid var(--line);background:var(--bg);color:var(--fg);font-family:Consolas,Menlo,monospace;font-size:12px;font-weight:700;cursor:pointer;border-radius:0;padding:0}
+.ed-tools button:hover{background:var(--hover)}
+.ed-body{flex:0 0 40vh;resize:vertical;border:2px solid var(--line);padding:10px 12px;font-family:Consolas,Menlo,"Courier New",monospace;font-size:13.5px;line-height:1.75;background:var(--code);color:var(--fg)}
+.ed-body:focus{outline:2px solid var(--fg);outline-offset:1px}
+.ed-hint{font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:11.5px;font-weight:700;color:var(--dim);letter-spacing:.02em}
+.ed-preview{flex:1;min-height:32vh;border:2px solid var(--line);padding:16px 22px;overflow:auto;background:var(--bg);font-size:15px}
+.ed-preview .note{color:var(--dim)}
+.passcount.ok{color:var(--ok)}
+.passcount.bad{color:var(--bad)}
+@media (max-width:900px){.ed-wrap{grid-template-columns:1fr}.ed-side{border-right:0;border-bottom:2px solid var(--line)}}
 .dp button:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
 .dp .dp-ok:focus-visible{outline:2px solid var(--bg);outline-offset:-4px}
 .dp input:focus-visible{outline:2px solid var(--fg);outline-offset:1px}

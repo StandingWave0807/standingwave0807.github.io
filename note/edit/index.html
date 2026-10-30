@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>编辑笔记 · 朱博</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/assets/katex/katex.min.css">
+<script src="/theme.js" defer></script>
+<script src="/dialog.js" defer></script>
+<script src="/picker.js" defer></script>
+<script src="/assets/katex/katex.min.js" defer></script>
+<script src="/assets/katex/auto-render.min.js" defer></script>
+<script src="/edit.js" defer></script>
+</head>
+<body class="bookmode editmode">
+<header>
+  <span class="chtag">编辑</span>
+  <h1>笔记面板</h1>
+  <span class="sp"></span>
+  <span class="passcount" id="ed-status">未连接</span>
+  <button class="mini" id="btnTheme">暗色</button>
+  <a href="/notes.html"><button class="mini">返回列表</button></a>
+</header>
+
+<div class="main">
+
+  <div id="ed-lock" hidden>
+    <div class="lockcard">
+      <h3>连本机服务</h3>
+      <p>这个页面不存 GitHub 凭据。写操作全部交给你自己电脑上的
+        <code>sitekeeper</code>，口令只在浏览器本地。</p>
+      <p id="ed-lockmsg" class="bad"></p>
+      <p><button type="button" class="pri" id="ed-retry">输入口令</button></p>
+      <p class="note">服务没开的话：双击 <code>sitekeeper\start.cmd</code>。</p>
+    </div>
+  </div>
+
+  <div id="ed-shell" class="ed-wrap" hidden>
+    <aside class="ed-side">
+      <div class="grp">笔记<b id="ed-count">0 条</b></div>
+      <div id="ed-list" class="ed-list"></div>
+      <button type="button" id="ed-new">＋ 新建一条</button>
+
+      <div class="grp">这一条的字段</div>
+      <label for="f-title">标题</label>
+      <input id="f-title" type="text" autocomplete="off">
+      <label for="f-date">日期</label>
+      <div class="ed-daterow">
+        <input id="f-date" type="text" placeholder="2026-10-31" autocomplete="off">
+        <button type="button" id="btn-date" title="从日历选择">日历</button>
+      </div>
+      <label>学科</label>
+      <div class="chips" id="ed-cats">
+        <button type="button" class="chip" data-cat="cs">CS</button>
+        <button type="button" class="chip" data-cat="ai">AI</button>
+        <button type="button" class="chip on" data-cat="math">MATH</button>
+        <button type="button" class="chip" data-cat="phy">PHY</button>
+      </div>
+      <label for="tag-input">标签</label>
+      <div class="tagbox" id="ed-tags"><input id="tag-input" type="text" placeholder="回车加一个"></div>
+      <label for="f-sub">摘要（列表页那一行）</label>
+      <textarea id="f-sub" rows="2"></textarea>
+      <label for="f-slug">地址名</label>
+      <input id="f-slug" type="text" placeholder="eigenvalue-spectral-entry" spellcheck="false" autocomplete="off">
+      <p class="note" id="ed-why" hidden></p>
+
+      <div class="grp">动作</div>
+      <div class="ed-acts">
+        <button type="button" id="ed-draft">存草稿</button>
+        <button type="button" class="pri" id="ed-publish">保存并发布</button>
+      </div>
+      <p class="ed-msg" id="ed-msg" hidden></p>
+      <p class="note">草稿只写进这台电脑，在仓库外面；发布才会提交并推送。</p>
+    </aside>
+
+    <section class="ed-mid">
+      <div class="ed-tools" id="ed-tools"></div>
+      <textarea id="f-body" class="ed-body" spellcheck="false"
+        placeholder="正文写 Markdown，公式用 $...$ 或 $$...$$"></textarea>
+      <div class="ed-hint">预览 —— 与线上同一套渲染</div>
+      <div class="ed-preview prose" id="ed-preview"><p class="note">左边写字，这里就是线上样子。</p></div>
+    </section>
+  </div>
+
+</div>
+</body>
+</html>
