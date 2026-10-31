@@ -99,26 +99,49 @@
     var jan1 = new Date(n.getFullYear(), 0, 1);
     return (n >= jan1 && n < new Date(n.getFullYear(), 0, 2)) ? jan1 : new Date(n.getFullYear() + 1, 0, 1);
   }
+  /* 站长在面板里设的日程烘在页面里，所有人打开都是这一个 */
+  function baked() {
+    var el = document.getElementById("baked-schedule");
+    if (!el) return null;
+    try {
+      var o = JSON.parse(el.textContent || "{}");
+      var d = parseTarget(o.target);
+      if (!d || !o.label) return null;
+      return { target: d, label: String(o.label).slice(0, 12), stamp: o.label + "|" + o.target };
+    } catch (e) { return null; }
+  }
+
   var cd = (function () {
+    var b = baked();
     try {
       var o = JSON.parse(localStorage.getItem(KEY_D) || "null");
       if (o && o.target) {
         var d = new Date(o.target);
-        if (!isNaN(d.getTime())) return { target: d, label: o.label || "目标" };
+        /* 站长换了日程（stamp 不一样了）就跟上线上；这台机器自己改过的仍然算 */
+        if (!isNaN(d.getTime()) && (!b || o.stamp === b.stamp))
+          return { target: d, label: o.label || "目标", auto: !o.labelEdited };
       }
     } catch (e) {}
-    return { target: newYear(), label: "新年" };
+    return b ? { target: b.target, label: b.label, auto: true }
+             : { target: newYear(), label: "新年", auto: true };
   })();
   function saveCd() {
-    try { localStorage.setItem(KEY_D, JSON.stringify({ target: cd.target.toISOString(), label: cd.label })); } catch (e) {}
+    var b = baked();
+    try {
+      localStorage.setItem(KEY_D, JSON.stringify({
+        target: cd.target.toISOString(), label: cd.label, labelEdited: !labelAuto,
+        stamp: b ? b.stamp : ""
+      }));
+    } catch (e) {}
   }
   function reject() {
     inputEl.value = fmtTarget(cd.target);
     inputEl.classList.add("bad");
     setTimeout(function () { inputEl.classList.remove("bad"); }, 900);
   }
-  /* 标签没被手动改过时，跟着目标走，免得显示"新年 · 54 天"这种自相矛盾 */
-  var labelAuto = cd.label === "新年" || cd.label === "目标";
+  /* 标签没被手动改过时跟着目标走，免得显示"组会 · 50 天"这种自相矛盾；
+     "改没改过"存成标记，不能靠文字内容猜 */
+  var labelAuto = cd.auto !== false;
   function setLabel(v, auto) {
     cd.label = v; labelAuto = !!auto;
     lbl.value = v; nameEl.textContent = v;

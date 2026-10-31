@@ -148,6 +148,12 @@
   }
 
   function validate() {
+    if (MODE === "work") return validateWork();
+    if (MODE === "plan") return validatePlan();
+    return validateNote();
+  }
+
+  function validateNote() {
     var bad = problems();
     $("ed-publish").disabled = bad.length > 0;
     $("ed-why").textContent = bad.length ? bad.join("；") : "";
@@ -190,6 +196,7 @@
 
   function saveDraft(quiet) {
     var c = current();
+    if (MODE !== "note") return Promise.resolve();
     if (!state.key || !SLUGRE.test(c.slug)) return Promise.resolve();
     var md = serialize(c);
     return api("/api/draft", { method: "POST", body: JSON.stringify({ slug: c.slug, md: md }) })
@@ -399,6 +406,345 @@
     } else showLock("");
   }
 
+  /* ========================= 作品与日程：另一种表单 ================ */
+  var MODE = "note";
+  var $all = function (sel, root) { return [].slice.call((root || document).querySelectorAll(sel)); };
+  var WFIELDS = ["state", "name", "href", "desc", "stack"];
+  var WLIMIT = {state: 12, name: 60, href: 300, desc: 200, stack: 40};
+  var WNAME = {state: "状态", name: "名称", href: "链接", desc: "说明", stack: "栈"};
+  var DKEY = {work: "lab-ed-work-draft-v1", plan: "lab-ed-plan-draft-v1"};
+  var cache = {work: null, plan: null};    /* 线上版本，DOM 里是当前编辑 */
+  var secRefs = {};
+  var tRowDraft = null, tPlanDraft = null, planTimer = null;
+  var TSRE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+
+  function keepLocal(type, data, revertBtn) {
+    writeLocal(DKEY[type], data);
+    $(revertBtn).hidden = false;
+    say("存在这台电脑上（浏览器本地），没有提交。", "ok");
+  }
+
+  function readLocal(k) {
+    try { var s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  }
+  function writeLocal(k, v) {
+    try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+  }
+
+  function setMode(m) {
+    if (m === MODE) return;
+    MODE = m;
+    $all("#ed-modes .chip").forEach(function (b) { b.classList.toggle("on", b.dataset.mode === m); });
+    $("pane-note").hidden = m !== "note";
+    $("pane-work").hidden = m !== "work";
+    $("pane-plan").hidden = m !== "plan";
+    $("ed-tools").hidden = m !== "note";
+    $("ed-row").hidden = m !== "note";
+    $("ed-stat").hidden = m !== "note";
+    $("ed-grid").hidden = m !== "work";
+    $("ed-alt").hidden = m !== "plan";
+    $("ed-draft").hidden = m !== "note";
+    say("");
+    if (m === "work") loadWork();
+    if (m === "plan") { loadPlan(); planTick(); }
+    if (m === "note") stat();
+    clearInterval(planTimer);
+    planTimer = m === "plan" ? setInterval(planTick, 1000) : null;
+    validate();
+  }
+
+  /* ------------------------------------------------------------------ 作品 */
+  var notified = {};
+
+  function loadWork() {
+    var local = readLocal(DKEY.work);
+    if (local) {                       /* 本机编辑优先，切来切去不能把它冲掉 */
+      paintWork(local);
+      $("w-revert").hidden = false;
+      if (cache.work && JSON.stringify(local) !== JSON.stringify(cache.work) && !notified.work) {
+        notified.work = true;
+        say("载入的是这台电脑上没发布的改动（线上是另一版）。", "warn");
+      }
+      return;
+    }
+    if (cache.work) {
+      paintWork(cache.work);
+      $("w-revert").hidden = true;
+      return;
+    }
+    api("/api/work").then(function (j) {
+      cache.work = j.data;
+      loadWork();
+    }).catch(function (e) { say("读不出作品：" + e.message, "bad"); });
+  }
+
+  function rowEl(sec, it) {
+    var tr = document.createElement("div");
+    tr.className = "g-r";
+    tr.dataset.sec = sec;
+    WFIELDS.forEach(function (k) {
+      var inp = document.createElement("input");
+      inp.type = "text";
+      inp.dataset.k = k;
+      inp.value = it[k] || "";
+      inp.spellcheck = false;
+      inp.title = WNAME[k] + "（上限 " + WLIMIT[k] + " 字）";
+      inp.addEventListener("input", rowTouched);
+      tr.appendChild(inp);
+    });
+    var ops = document.createElement("div");
+    ops.className = "g-ops";
+    [["↑", "上移", function () { moveRow(tr, -1); }],
+     ["↓", "下移", function () { moveRow(tr, 1); }],
+     ["×", "删掉这一行", function () { tr.parentNode.removeChild(tr); rowTouched(); }]]
+      .forEach(function (o) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = o[0];
+        b.title = o[1];
+        b.onclick = o[2];
+        ops.appendChild(b);
+      });
+    tr.appendChild(ops);
+    return tr;
+  }
+
+  function paintWork(d) {
+    var g = $("ed-grid");
+    g.innerHTML = "";
+    secRefs = {};
+    [["open", "在写的", "在写"], ["closed", "停掉的", "已停"]].forEach(function (sec) {
+      var bar = document.createElement("div");
+      bar.className = "g-sec";
+      var label = document.createElement("span");
+      label.textContent = sec[1];
+      var add = document.createElement("button");
+      add.type = "button";
+      add.className = "g-add";
+      add.textContent = "＋ 加一行";
+      add.onclick = function () { insertRow(sec[0], {state: sec[2], name: "", href: "【仓库链接】", desc: "", stack: ""}); };
+      bar.appendChild(label);
+      bar.appendChild(add);
+      g.appendChild(bar);
+
+      var head = document.createElement("div");
+      head.className = "g-h";
+      head.innerHTML = "<span>状态</span><span>名称</span><span>链接</span><span>说明</span><span>栈</span><span>操作</span>";
+      g.appendChild(head);
+      secRefs[sec[0]] = head;
+      (d[sec[0]] || []).forEach(function (it) { g.appendChild(rowEl(sec[0], it)); });
+    });
+    validateWork();
+  }
+
+  function insertRow(sec, blank) {
+    var rows = $all('#ed-grid .g-r[data-sec="' + sec + '"]');
+    var el = rowEl(sec, blank);
+    if (rows.length) {
+      var last = rows[rows.length - 1];
+      last.parentNode.insertBefore(el, last.nextSibling);
+    } else {
+      $("ed-grid").insertBefore(el, secRefs[sec].nextSibling);
+    }
+    rowTouched();
+    el.querySelector('[data-k="name"]').focus();
+  }
+
+  function moveRow(el, dir) {
+    var rows = $all('#ed-grid .g-r[data-sec="' + el.dataset.sec + '"]');
+    var i = rows.indexOf(el), j = i + dir;
+    if (j < 0 || j >= rows.length) return;
+    if (dir < 0) el.parentNode.insertBefore(el, rows[j]);
+    else el.parentNode.insertBefore(rows[j], el);
+    rowTouched();
+  }
+
+  function collectWork() {
+    var out = {open: [], closed: []};
+    $all("#ed-grid .g-r").forEach(function (tr) {
+      var o = {};
+      WFIELDS.forEach(function (k) {
+        o[k] = tr.querySelector('[data-k="' + k + '"]').value.trim();
+      });
+      out[tr.dataset.sec].push(o);
+    });
+    return out;
+  }
+
+  function validateWork() {
+    var d = collectWork(), bad = [];
+    if (!d.open.length) bad.push("在写的至少留一行");
+    [["open", "在写"], ["closed", "停掉"]].forEach(function (sec) {
+      d[sec[0]].forEach(function (it, i) {
+        WFIELDS.forEach(function (k) {
+          var v = it[k];
+          if (!v) bad.push(sec[1] + " 第 " + (i + 1) + " 行的" + WNAME[k] + "是空的");
+          else if (v.length > WLIMIT[k])
+            bad.push(sec[1] + " 第 " + (i + 1) + " 行的" + WNAME[k] + "有 " + v.length + " 字，上限 " + WLIMIT[k]);
+        });
+      });
+    });
+    $all("#ed-grid .g-r input").forEach(function (inp) {
+      var v = inp.value.trim();
+      inp.classList.toggle("bad", !v || v.length > WLIMIT[inp.dataset.k]);
+    });
+    $("w-count").textContent = d.open.length + " · " + d.closed.length + " 行";
+    $("ed-publish").disabled = bad.length > 0;
+    $("ed-why-w").textContent = bad.length > 4 ? bad.slice(0, 4).join("；") + "…（共 " + bad.length + " 处）"
+                                               : bad.join("；");
+    $("ed-why-w").hidden = !bad.length;
+    return bad;
+  }
+
+  function rowTouched() {
+    validateWork();
+    clearTimeout(tRowDraft);
+    tRowDraft = setTimeout(function () {
+      writeLocal(DKEY.work, collectWork());
+      $("w-revert").hidden = false;
+    }, 700);
+  }
+
+  /* ------------------------------------------------------------------ 日程 */
+  function loadPlan() {
+    var local = readLocal(DKEY.plan);
+    if (local) {
+      fillPlan(local);
+      $("p-revert").hidden = false;
+      if (cache.plan && JSON.stringify(local) !== JSON.stringify(cache.plan) && !notified.plan) {
+        notified.plan = true;
+        say("载入的是这台电脑上没发布的日程。", "warn");
+      }
+      return;
+    }
+    if (cache.plan) {
+      fillPlan(cache.plan);
+      $("p-revert").hidden = true;
+      return;
+    }
+    api("/api/plan").then(function (j) {
+      cache.plan = j.data;
+      loadPlan();
+    }).catch(function (e) { say("读不出日程：" + e.message, "bad"); });
+  }
+
+  function fillPlan(d) {
+    $("p-label").value = d.label || "";
+    $("p-target").value = d.target || "";
+    validatePlan();
+    planTick();
+  }
+
+  function collectPlan() {
+    return {label: $("p-label").value.trim(), target: $("p-target").value.trim()};
+  }
+
+  function planDate(s) {
+    var m = /(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(s);
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    var ok = d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] &&
+             d.getHours() === +m[4] && d.getMinutes() === +m[5];
+    return ok ? d : null;
+  }
+
+  function validatePlan() {
+    var o = collectPlan(), bad = [];
+    if (!o.label) bad.push("名称不能空");
+    else if (o.label.length > 12) bad.push("名称有 " + o.label.length + " 字，上限 12");
+    if (!TSRE.test(o.target)) bad.push("时间要写成 2027-01-01 00:00 这样");
+    else if (!planDate(o.target)) bad.push("这个日期不存在");
+    $("p-label").classList.toggle("bad", !o.label || o.label.length > 12);
+    $("p-target").classList.toggle("bad", !TSRE.test(o.target) || !planDate(o.target));
+    $("ed-publish").disabled = bad.length > 0;
+    $("ed-why-p").textContent = bad.join("；");
+    $("ed-why-p").hidden = !bad.length;
+    return bad;
+  }
+
+  function planTouched() {
+    validatePlan();
+    planTick();
+    clearTimeout(tPlanDraft);
+    tPlanDraft = setTimeout(function () {
+      writeLocal(DKEY.plan, collectPlan());
+      $("p-revert").hidden = false;
+    }, 700);
+  }
+
+  function cell(big, small) {
+    var d = document.createElement("div");
+    d.className = "u";
+    var b = document.createElement("b");
+    b.className = "mono";
+    b.textContent = big;
+    var s = document.createElement("span");
+    s.textContent = small;
+    d.appendChild(b);
+    d.appendChild(s);
+    return d;
+  }
+
+  function planTick() {
+    if (MODE !== "plan") return;
+    var o = collectPlan(), d = TSRE.test(o.target) ? planDate(o.target) : null;
+    var box = $("alt-pv");
+    box.innerHTML = "";
+    if (!d) {
+      var p = document.createElement("p");
+      p.className = "note";
+      p.textContent = "时间没填对，预览不出来。";
+      box.appendChild(p);
+      $("p-count").textContent = "—";
+      return;
+    }
+    var ms = d - new Date(), over = ms <= 0, abs = Math.abs(ms);
+    var days = Math.floor(abs / 864e5);
+    var row = document.createElement("div");
+    row.className = "clock";
+    row.appendChild(cell(days, o.label || "目标"));
+    if (!over) {
+      row.appendChild(cell(pad(Math.floor(abs / 36e5) % 24), "时"));
+      row.appendChild(cell(pad(Math.floor(abs / 6e4) % 60), "分"));
+      row.appendChild(cell(pad(Math.floor(abs / 1e3) % 60), "秒"));
+    }
+    box.appendChild(row);
+    var line = document.createElement("p");
+    line.className = "note";
+    line.textContent = over ? "已经过了 " + days + " 天：首页会藏掉时分秒，只留“已过 N 天”。"
+                            : "首页那一行就是这四个格子，所有人打开都是这一个日期。";
+    box.appendChild(line);
+    var src = document.createElement("p");
+    src.className = "alt-src";
+    src.textContent = "烘进 index.html：" + JSON.stringify(o);
+    box.appendChild(src);
+    $("p-count").textContent = over ? "已过 " + days + " 天" : "还有 " + days + " 天";
+  }
+
+  /* ------------------------------------------------------------ 发布（表单） */
+  function publishRows(type, data, what) {
+    var bad = type === "work" ? validateWork() : validatePlan();
+    if (bad.length) { say(bad.join("；"), "bad"); return; }
+    say("");
+    ask("发布" + what + "？会提交并推送到线上。", { ok: "发布", cancel: "先不" }).then(function (y) {
+      if (!y) return;
+      $("ed-publish").disabled = true;
+      setStatus("发布中…");
+      api("/api/publish", { method: "POST", body: JSON.stringify({type: type, data: data}) })
+        .then(function (r) {
+          setStatus("已发布 " + r.sha, "ok");
+          say(r.unchanged ? "内容没变化，没有产生新提交。"
+                          : "已提交 " + r.sha + " 并推送。约 1–2 分钟后线上可见：" + r.url, "ok");
+          cache[type] = data;
+          writeLocal(DKEY[type], null);
+          $(type === "work" ? "w-revert" : "p-revert").hidden = true;
+          if (type === "work") paintWork(data);
+        })
+        .catch(function (e) { setStatus("发布没成功", "bad"); say(e.message, "bad"); })
+        .then(function () { $("ed-publish").disabled = false; validate(); });
+    });
+  }
+
   /* ---------------------------------------------------------------- 分隔条 */
   var RKEY = "lab-ed-split";
   function pvCol() { return document.querySelector(".ed-pv"); }
@@ -477,6 +823,33 @@
     $("ed-cats").querySelectorAll(".chip").forEach(function (b) {
       b.onclick = function () { setCat(b.dataset.cat); touched(); };
     });
+    $all("#ed-modes .chip").forEach(function (b) {
+      b.onclick = function () { setMode(b.dataset.mode); };
+    });
+    ["p-label", "p-target"].forEach(function (id) {
+      $(id).addEventListener("input", planTouched);
+      $(id).addEventListener("change", planTouched);
+    });
+    $("btn-plan").onclick = function () {
+      var o = collectPlan(), d = TSRE.test(o.target) ? planDate(o.target) : new Date();
+      window.datePicker($("btn-plan"), {value: d, onPick: function (p) {
+        $("p-target").value = p.getFullYear() + "-" + pad(p.getMonth() + 1) + "-" + pad(p.getDate()) +
+                              " " + pad(p.getHours()) + ":" + pad(p.getMinutes());
+        planTouched();
+      }});
+    };
+    $("w-revert").onclick = function () {
+      writeLocal(DKEY.work, null);
+      $("w-revert").hidden = true;
+      if (cache.work) paintWork(cache.work);
+      say("回到线上版本了。", "ok");
+    };
+    $("p-revert").onclick = function () {
+      writeLocal(DKEY.plan, null);
+      $("p-revert").hidden = true;
+      if (cache.plan) fillPlan(cache.plan);
+      say("回到线上版本了。", "ok");
+    };
     paintTools();
     paintTags();
     setupSplit();
@@ -514,14 +887,23 @@
     });
     $("ed-new").onclick = function () { fresh(); state.dirty = false; validate(); paintList(); f.title.focus(); };
     $("ed-draft").onclick = function () { saveDraft(false); };
-    $("ed-publish").onclick = publish;
+    $("ed-publish").onclick = function () {
+      if (MODE === "work") publishRows("work", collectWork(), "作品的两张表");
+      else if (MODE === "plan") publishRows("plan", collectPlan(), "首页倒数日");
+      else publish();
+    };
     $("ed-retry").onclick = function () {
       var saved = null;
       try { saved = localStorage.getItem(KEYNAME); } catch (e) {}
       askKey(saved || "");
     };
     document.addEventListener("keydown", function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveDraft(false); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (MODE === "work") keepLocal("work", collectWork(), "w-revert");
+        else if (MODE === "plan") keepLocal("plan", collectPlan(), "p-revert");
+        else saveDraft(false);
+      }
     });
     window.addEventListener("beforeunload", function (e) {
       if (state.dirty) { e.preventDefault(); e.returnValue = ""; }

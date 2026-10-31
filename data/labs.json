@@ -1,0 +1,22 @@
+{
+  "cpp": {
+    "label": "C++ 实验室",
+    "href": "/lab/cpp.html",
+    "store": "cpplab2-ch9-16",
+    "token": "cpplab2",
+    "port": 8710,
+    "total": 170,
+    "example": 33,
+    "chapters": 11
+  },
+  "py": {
+    "label": "Python 生活实验室",
+    "href": "/lab/pylab.html",
+    "store": "pylab-v1",
+    "token": "pylab",
+    "port": 8642,
+    "total": 334,
+    "example": 0,
+    "chapters": 17
+  }
+}

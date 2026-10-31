@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>编辑笔记 · 朱博</title>
+<title>内容面板 · 朱博</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/assets/katex/katex.min.css">
@@ -19,7 +19,7 @@
 <body class="bookmode editmode">
 <header>
   <span class="chtag">编辑</span>
-  <h1>笔记面板</h1>
+  <h1>内容面板</h1>
   <span class="sp"></span>
   <span class="passcount" id="ed-status">未连接</span>
   <button class="mini" id="btnTheme">暗色</button>
@@ -41,32 +41,64 @@
 
   <div id="ed-shell" class="ed-wrap" hidden>
     <aside class="ed-side">
-      <div class="grp">笔记<b id="ed-count">0 条</b></div>
-      <div id="ed-list" class="ed-list"></div>
-      <button type="button" id="ed-new">＋ 新建一条</button>
+      <div class="grp">内容<b>三类</b></div>
+      <div class="chips" id="ed-modes">
+        <button type="button" class="chip on" data-mode="note">笔记</button>
+        <button type="button" class="chip" data-mode="work">作品</button>
+        <button type="button" class="chip" data-mode="plan">日程</button>
+      </div>
 
-      <div class="grp">这一条的字段</div>
-      <label for="f-title">标题</label>
-      <input id="f-title" type="text" autocomplete="off">
-      <label for="f-date">日期</label>
-      <div class="ed-daterow">
-        <input id="f-date" type="text" placeholder="2026-10-31" autocomplete="off">
-        <button type="button" id="btn-date" title="从日历选择">日历</button>
+      <div id="pane-note">
+        <div class="grp">笔记<b id="ed-count">0 条</b></div>
+        <div id="ed-list" class="ed-list"></div>
+        <button type="button" id="ed-new">＋ 新建一条</button>
+
+        <div class="grp">这一条的字段</div>
+        <label for="f-title">标题</label>
+        <input id="f-title" type="text" autocomplete="off">
+        <label for="f-date">日期</label>
+        <div class="ed-daterow">
+          <input id="f-date" type="text" placeholder="2026-10-31" autocomplete="off">
+          <button type="button" id="btn-date" title="从日历选择">日历</button>
+        </div>
+        <label>学科</label>
+        <div class="chips" id="ed-cats">
+          <button type="button" class="chip" data-cat="cs">CS</button>
+          <button type="button" class="chip" data-cat="ai">AI</button>
+          <button type="button" class="chip on" data-cat="math">MATH</button>
+          <button type="button" class="chip" data-cat="phy">PHY</button>
+        </div>
+        <label for="tag-input">标签</label>
+        <div class="tagbox" id="ed-tags"><input id="tag-input" type="text" placeholder="回车加一个"></div>
+        <label for="f-sub">摘要（列表页那一行）</label>
+        <textarea id="f-sub" rows="2"></textarea>
+        <label for="f-slug">地址名</label>
+        <input id="f-slug" type="text" placeholder="eigenvalue-spectral-entry" spellcheck="false" autocomplete="off">
+        <p class="note" id="ed-why" hidden></p>
       </div>
-      <label>学科</label>
-      <div class="chips" id="ed-cats">
-        <button type="button" class="chip" data-cat="cs">CS</button>
-        <button type="button" class="chip" data-cat="ai">AI</button>
-        <button type="button" class="chip on" data-cat="math">MATH</button>
-        <button type="button" class="chip" data-cat="phy">PHY</button>
+
+      <div id="pane-work" hidden>
+        <div class="grp">作品<b id="w-count">—</b></div>
+        <p class="note">右边那张表就是线上的样子：行内直接改，顺序用 ↑ ↓ 调，最后一列删行。链接还没定就留
+          <code>【仓库链接】</code>，门控会数着它。</p>
+        <p class="note" id="ed-why-w" hidden></p>
+        <button type="button" class="wide" id="w-revert" hidden>回到线上版本</button>
       </div>
-      <label for="tag-input">标签</label>
-      <div class="tagbox" id="ed-tags"><input id="tag-input" type="text" placeholder="回车加一个"></div>
-      <label for="f-sub">摘要（列表页那一行）</label>
-      <textarea id="f-sub" rows="2"></textarea>
-      <label for="f-slug">地址名</label>
-      <input id="f-slug" type="text" placeholder="eigenvalue-spectral-entry" spellcheck="false" autocomplete="off">
-      <p class="note" id="ed-why" hidden></p>
+
+      <div id="pane-plan" hidden>
+        <div class="grp">首页倒数日<b id="p-count">—</b></div>
+        <label for="p-label">名称</label>
+        <input id="p-label" type="text" maxlength="12" autocomplete="off">
+        <label for="p-target">目标时刻</label>
+        <div class="ed-daterow">
+          <input id="p-target" type="text" placeholder="2027-01-01 00:00" autocomplete="off">
+          <button type="button" id="btn-plan" title="从日历选择">日历</button>
+        </div>
+        <p class="note">所有人打开首页看到的都是这一个。谁在这台电脑上自己调过，他自己那个仍然算，
+          直到你发布一个新的。</p>
+        <p class="note" id="ed-why-p" hidden></p>
+        <button type="button" class="wide" id="p-revert" hidden>回到线上版本</button>
+      </div>
 
       <div class="grp">动作</div>
       <div class="ed-acts">
@@ -74,12 +106,12 @@
         <button type="button" class="pri" id="ed-publish">保存并发布</button>
       </div>
       <p class="ed-msg" id="ed-msg" hidden></p>
-      <p class="note">草稿只写进这台电脑，在仓库外面；发布才会提交并推送。</p>
+      <p class="note">发布就是让本机服务改文件、重建页面、提交并推送；GitHub 的钥匙只在这台电脑上。</p>
     </aside>
 
     <section class="ed-mid">
       <div class="ed-tools" id="ed-tools"></div>
-      <div class="ed-row">
+      <div class="ed-row" id="ed-row">
         <div id="f-body" class="ed-body"></div>
         <div class="ed-vsplit" id="ed-split" role="separator" aria-orientation="vertical"
           tabindex="0" title="左右拖动分配宽度，双击复位"></div>
@@ -89,6 +121,12 @@
         </div>
       </div>
       <div class="ed-stat" id="ed-stat"></div>
+
+      <div id="ed-grid" class="ed-grid" hidden></div>
+      <div id="ed-alt" class="ed-alt" hidden>
+        <div class="ed-hint">预览 —— 首页倒数日那一格</div>
+        <div class="ed-preview prose" id="alt-pv"></div>
+      </div>
     </section>
   </div>
 
