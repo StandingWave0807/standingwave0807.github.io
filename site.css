@@ -137,11 +137,29 @@ a.lab-link .arrow{margin-left:auto;color:var(--dim)}
 @media (prefers-contrast:more){:root{--soft:#8b8b8b;--dim:#3a3a3a}}
 @media (max-width:900px){
   body{overflow:auto}
-  .main{grid-template-columns:1fr;min-height:0}
+  .main,body.bookmode .main{grid-template-columns:1fr;min-height:0}
   .side{border-right:0;border-bottom:2px solid var(--line);max-height:none;overflow:visible}
   .mid{border-right:0}
   .right{border-top:3px solid var(--line)}
   .edwrap,.stage{min-height:260px}
+}
+@media (max-width:720px){
+  /* 侧栏从竖排改成一条横向可滑的导航带，不然手机上要先滚过五项才看到正文 */
+  .side{display:flex;align-items:center;gap:2px;overflow-x:auto;padding:4px 8px;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .side .grp{display:none}
+  .side .it{border-left:0;border-bottom:3px solid transparent;padding:11px 12px;flex:none}
+  .side .it.on{border-left-color:transparent;border-bottom-color:var(--line)}
+  .side .it .nm{white-space:nowrap}
+  body.bookmode .pane{padding:16px 16px 60px}
+  header{gap:10px;padding:10px 14px;flex-wrap:wrap}
+  header .chtag{display:none}
+  header h1{font-size:19px;flex:1 1 100%;order:-1}
+  .mid{min-width:0}
+  .tabs{flex-wrap:wrap}
+  .tabs div,.tabs button.chip{padding:12px 10px 10px}
+  /* 触屏命中区：原来 23–27px 高，手指按不准 */
+  header button.mini,header a .mini,.btnlink{min-height:40px}
+  #hdr-clock{font-size:11.5px}
 }
 .tabs button.chip{background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px 10px;font-size:15px;font-weight:600;color:var(--dim);border-radius:0;min-height:0}
 .tabs button.chip:hover{background:none;color:var(--fg)}
@@ -175,6 +193,7 @@ html.dark .side .it.done .bx,html.dark .side .it.on .bx{background-image:url("da
 a.btnlink{display:inline-flex;align-items:center;gap:.4em;border:2px solid var(--line);padding:5px 14px;background:var(--bg);color:var(--fg);text-decoration:none;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-weight:700;font-size:13.5px}
 a.btnlink:hover{background:var(--hover)}
 a.btnlink:active{transform:scale(.97)}
+a.ed-entry.dim{border-style:dashed;color:var(--dim)}
 .cdbar .q{border:1.5px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:12.5px;font-weight:700;padding:3px 9px;cursor:pointer}
 .cdbar .q:hover{background:var(--hover)}
 /* 全站不出现裸超链接 */
