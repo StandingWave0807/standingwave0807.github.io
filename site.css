@@ -225,6 +225,7 @@ a{color:inherit;text-decoration:none}
 /* ---- 笔记编辑面板 ---- */
 body.editmode .main{display:flex;overflow:hidden}
 .lockcard{max-width:34em;margin:8vh auto;border:3px solid var(--line);padding:26px 30px;background:var(--bg)}
+[hidden]{display:none !important}   /* 作者样式里的 display 会盖掉 UA 的 hidden，必须钉死 */
 .lockcard h3{margin:0 0 10px;font-size:20px}
 #ed-lockmsg{color:var(--bad);font-size:13.5px;min-height:1.4em}
 .ed-wrap{display:grid;grid-template-columns:302px 1fr;width:100%;min-height:0}
@@ -264,22 +265,35 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .ed-msg.warn{color:var(--warn)}
 #ed-why,#ed-why-w,#ed-why-p{color:var(--bad);font-size:12px;margin:8px 0 0}
 .ed-mid{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;padding:12px 16px;gap:8px;overflow:hidden}
+.ed-head{display:flex;gap:0;flex:none;align-items:flex-end}
+.ed-head .hc{min-width:0;display:flex;flex-direction:column;gap:4px}
+.ed-head .hc-l{flex:1 1 calc(var(--edr,.5) * 100%)}
+.ed-head .hc-r{flex:1 1 calc((1 - var(--edr,.5)) * 100%)}
+.ed-head .hg{flex:none;width:9px}
 .ed-tools{display:flex;flex-wrap:wrap;gap:3px;flex:none}
 .ed-tools button{width:31px;height:28px;border:2px solid var(--line);background:var(--bg);color:var(--fg);font-family:Consolas,Menlo,monospace;font-size:12px;font-weight:700;cursor:pointer;border-radius:0;padding:0}
 .ed-tools button:hover{background:var(--hover)}
 .ed-row{display:flex;flex:1 1 auto;min-height:0;gap:0}
-.ed-body{flex:1 1 50%;min-width:0;overflow:hidden;border:2px solid var(--line);background:var(--code);color:var(--fg)}
+.ed-body{flex:1 1 calc(var(--edr,.5) * 100%);min-width:0;overflow:hidden;border:2px solid var(--line);background:var(--code);color:var(--fg)}
 .ed-body:focus-within{outline:2px solid var(--fg);outline-offset:1px}
 .ed-body .cm-editor{height:100%}
 .ed-vsplit{flex:none;width:9px;align-self:stretch;border:0;background:var(--soft);cursor:col-resize;position:relative}
 .ed-vsplit::after{content:"";position:absolute;top:50%;left:50%;width:3px;height:44px;margin:-22px 0 0 -2px;background:var(--line);opacity:.45}
 .ed-vsplit:hover{background:var(--hover)}
-.ed-pv{flex:1 1 50%;min-width:0;display:flex;flex-direction:column;gap:6px}
 .ed-hint{flex:none;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:11.5px;font-weight:700;color:var(--dim);letter-spacing:.02em}
-.ed-preview{flex:1 1 auto;min-height:0;border:2px solid var(--line);padding:16px 22px;overflow:auto;background:var(--bg);font-size:15px}
+.ed-preview{min-height:0;border:2px solid var(--line);padding:16px 22px;overflow:auto;background:var(--bg);font-size:15px}
+.ed-row > .ed-preview{flex:1 1 calc((1 - var(--edr,.5)) * 100%);min-width:0}
 .ed-preview .note{color:var(--dim)}
 .ed-stat{flex:none;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:11.5px;color:var(--dim)}
 .ed-only{display:none}
+/* 中栏三块靠 body[data-mode] 互斥；hidden 属性也一并设，两道保险 */
+#ed-grid,#ed-alt{display:none}
+body[data-mode="work"] #ed-grid{display:block}
+body[data-mode="plan"] #ed-alt{display:flex}
+body:not([data-mode="note"]) .ed-head,body:not([data-mode="note"]) .ed-row,body:not([data-mode="note"]) .ed-stat{display:none}
+/* 未解锁：编辑器与字段都不接受输入（真 disabled 由 edit.js 加在控件上） */
+.ed-off .cm-content{pointer-events:none;user-select:none;opacity:.55}
+.ed-off .cm-content::after{content:"";position:absolute;inset:0}
 .wide{width:100%;margin-top:6px}
 .ed-grid{flex:1 1 auto;min-height:0;overflow:auto;border:2px solid var(--line);background:var(--bg)}
 .g-sec,.g-h,.g-r{display:grid;grid-template-columns:74px minmax(9em,1.1fr) minmax(11em,1.4fr) minmax(14em,2.6fr) 82px 74px;gap:5px;align-items:start;padding:5px 7px}
@@ -298,16 +312,25 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .ed-alt{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px}
 .alt-src{flex:none;font-family:Consolas,Menlo,monospace;font-size:11.5px;color:var(--dim);word-break:break-all}
 @media (max-width:1120px){
-  .ed-vsplit{display:none}
-  .ed-body,.ed-pv{flex:1 1 auto}
-  .ed-pv{display:none}
+  .ed-vsplit,.ed-head .hg{display:none}
+  .ed-body,.ed-row > .ed-preview{flex:1 1 auto}
+  .ed-row > .ed-preview{display:none}
   .ed-only{display:inline-block}
   body.ed-showpv .ed-body{display:none}
-  body.ed-showpv .ed-pv{display:flex}
+  body.ed-showpv .ed-row > .ed-preview{display:block}
+  body.ed-showpv .ed-head .hc-l{display:none}
 }
 .passcount.ok{color:var(--ok)}
 .passcount.bad{color:var(--bad)}
-@media (max-width:900px){.ed-wrap{grid-template-columns:1fr}.ed-side{border-right:0;border-bottom:2px solid var(--line)}}
+@media (max-width:900px){
+  .ed-wrap{grid-template-columns:1fr}
+  .ed-side{border-right:0;border-bottom:2px solid var(--line);overflow:visible}
+  body.editmode .main{overflow:auto}
+  body.editmode .ed-mid{height:auto;min-height:0;overflow:visible}
+  body.editmode .ed-row{min-height:56vh}
+  body.editmode .ed-body{min-height:56vh}
+  .ed-grid{min-height:60vh}
+}
 .dp button:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
 .dp .dp-ok:focus-visible{outline:2px solid var(--bg);outline-offset:-4px}
 .dp input:focus-visible{outline:2px solid var(--fg);outline-offset:1px}

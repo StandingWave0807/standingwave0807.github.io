@@ -22,8 +22,9 @@
   <h1>内容面板</h1>
   <span class="sp"></span>
   <span class="passcount" id="ed-status">未连接</span>
+  <span class="passcount" id="ed-where" title="本机服务回报的仓库路径"></span>
   <button class="mini" id="btnTheme">暗色</button>
-  <a href="/notes.html"><button class="mini">返回列表</button></a>
+  <a href="/notes.html" id="ed-back"><button class="mini" type="button">回笔记列表</button></a>
 </header>
 
 <div class="main">
@@ -36,6 +37,7 @@
       <p id="ed-lockmsg" class="bad"></p>
       <p><button type="button" class="pri" id="ed-retry">输入口令</button></p>
       <p class="note">服务没开的话：双击 <code>sitekeeper\start.cmd</code>。</p>
+      <p class="note">没连上的时候整页是禁用的：字段读不了、发布点不动。真正的把关在本机服务那边——没有口令它一律回 401，路径也只认白名单那几个文件。</p>
     </div>
   </div>
 
@@ -105,27 +107,34 @@
         <button type="button" id="ed-draft">存草稿</button>
         <button type="button" class="pri" id="ed-publish">保存并发布</button>
       </div>
+      <button type="button" class="wide" id="ed-disconnect">断开本机服务</button>
       <p class="ed-msg" id="ed-msg" hidden></p>
       <p class="note">发布就是让本机服务改文件、重建页面、提交并推送；GitHub 的钥匙只在这台电脑上。</p>
     </aside>
 
     <section class="ed-mid">
-      <div class="ed-tools" id="ed-tools"></div>
+      <div class="ed-head">
+        <div class="hc hc-l">
+          <span class="ed-hint">正文 · Markdown</span>
+          <div class="ed-tools" id="ed-tools"></div>
+        </div>
+        <span class="hg" aria-hidden="true"></span>
+        <div class="hc hc-r">
+          <span class="ed-hint">预览 · 与线上同一套渲染</span>
+        </div>
+      </div>
       <div class="ed-row" id="ed-row">
         <div id="f-body" class="ed-body"></div>
         <div class="ed-vsplit" id="ed-split" role="separator" aria-orientation="vertical"
           tabindex="0" title="左右拖动分配宽度，双击复位"></div>
-        <div class="ed-pv">
-          <div class="ed-hint">预览 —— 与线上同一套渲染</div>
-          <div class="ed-preview prose" id="ed-preview"><p class="note">左边写字，这里就是线上样子。</p></div>
-        </div>
+        <div class="ed-preview prose" id="ed-preview"><p class="note">左边写字，这里就是线上样子。</p></div>
       </div>
       <div class="ed-stat" id="ed-stat"></div>
 
       <div id="ed-grid" class="ed-grid" hidden></div>
       <div id="ed-alt" class="ed-alt" hidden>
-        <div class="ed-hint">预览 —— 首页倒数日那一格</div>
-        <div class="ed-preview prose" id="alt-pv"></div>
+        <div class="ed-hint">预览 · 首页倒数日那一格</div>
+        <div class="ed-preview prose" id="alt-pv"><p class="note">连上本机服务以后，这里显示首页会看到的样子。</p></div>
       </div>
     </section>
   </div>

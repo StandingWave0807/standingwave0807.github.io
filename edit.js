@@ -155,8 +155,9 @@
 
   function validateNote() {
     var bad = problems();
+    if (!state.key) bad = bad.concat("没连上本机服务");
     $("ed-publish").disabled = bad.length > 0;
-    $("ed-why").textContent = bad.length ? bad.join("；") : "";
+    $("ed-why").textContent = bad.join("；");
     $("ed-why").hidden = !bad.length;
     return bad;
   }
@@ -370,6 +371,8 @@
       setStatus("本机服务 · 已连上", "ok");
       $("ed-shell").hidden = false;
       $("ed-lock").hidden = true;
+      setLocked(false);
+      where();
       paintList();
     });
   }
@@ -378,6 +381,8 @@
     $("ed-lock").hidden = false;
     $("ed-shell").hidden = true;
     $("ed-lockmsg").textContent = why || "";
+    setStatus("未连接", "bad");
+    setLocked(true);
   }
 
   function askKey(prefill) {
@@ -434,6 +439,12 @@
   function setMode(m) {
     if (m === MODE) return;
     MODE = m;
+    document.body.dataset.mode = m;      /* 中栏三块由它互斥，不靠 hidden 单打独斗 */
+    var back = document.getElementById("ed-back");
+    if (back) {
+      back.href = m === "work" ? "/work.html" : m === "plan" ? "/" : "/notes.html";
+      back.firstChild.textContent = m === "work" ? "回作品页" : m === "plan" ? "回首页" : "回笔记列表";
+    }
     $all("#ed-modes .chip").forEach(function (b) { b.classList.toggle("on", b.dataset.mode === m); });
     $("pane-note").hidden = m !== "note";
     $("pane-work").hidden = m !== "work";
@@ -589,6 +600,7 @@
       inp.classList.toggle("bad", !v || v.length > WLIMIT[inp.dataset.k]);
     });
     $("w-count").textContent = d.open.length + " · " + d.closed.length + " 行";
+    if (!state.key) bad = bad.concat("没连上本机服务");
     $("ed-publish").disabled = bad.length > 0;
     $("ed-why-w").textContent = bad.length > 4 ? bad.slice(0, 4).join("；") + "…（共 " + bad.length + " 处）"
                                                : bad.join("；");
@@ -656,6 +668,7 @@
     else if (!planDate(o.target)) bad.push("这个日期不存在");
     $("p-label").classList.toggle("bad", !o.label || o.label.length > 12);
     $("p-target").classList.toggle("bad", !TSRE.test(o.target) || !planDate(o.target));
+    if (!state.key) bad = bad.concat("没连上本机服务");
     $("ed-publish").disabled = bad.length > 0;
     $("ed-why-p").textContent = bad.join("；");
     $("ed-why-p").hidden = !bad.length;
@@ -745,9 +758,40 @@
     });
   }
 
+  /* ------------------------------------------------------------------ 锁 */
+  /* 没连上本机服务时整页不许编辑。这挡的是误操作和"以为改成功了"，
+     真正的把关在服务那边：没有口令一律 401，路径只认白名单。 */
+  function setLocked(on) {
+    document.body.classList.toggle("ed-locked", on);
+    $all("#ed-shell input,#ed-shell textarea,#ed-shell select,#ed-shell button").forEach(function (el) {
+      if (el.id === "btnTheme") return;
+      el.disabled = on;
+    });
+    if (ed) {
+      f.body.classList.toggle("ed-off", on);
+      var c = f.body.querySelector(".cm-content");
+      if (c) c.setAttribute("contenteditable", on ? "false" : "true");
+    }
+    if (on) state.key = null;
+    validate();
+  }
+
+  function shortPath(p) {
+    var parts = String(p || "").split(/[\\/]+/).filter(Boolean);
+    return parts.length > 2 ? "…/" + parts.slice(-2).join("/") : parts.join("/");
+  }
+
+  function where() {
+    fetch(BASE + "/ping", { cache: "no-store" }).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (j) {
+      $("ed-where").textContent = j ? "服务在 :" + j.port + " · " + shortPath(j.site) : "";
+    }).catch(function () { $("ed-where").textContent = ""; });
+  }
+
   /* ---------------------------------------------------------------- 分隔条 */
   var RKEY = "lab-ed-split";
-  function pvCol() { return document.querySelector(".ed-pv"); }
+  function mid() { return document.querySelector(".ed-mid"); }
   function ratio() {
     var row = document.querySelector(".ed-row").getBoundingClientRect();
     var r = f.body.getBoundingClientRect();
@@ -755,13 +799,12 @@
   }
   function setRatio(r) {
     r = Math.min(0.82, Math.max(0.18, r));
-    f.body.style.flex = "1 1 " + (r * 100).toFixed(2) + "%";
-    pvCol().style.flex = "1 1 " + ((1 - r) * 100).toFixed(2) + "%";
+    /* 表头和两栏读同一个比例，宽度才不会各算各的 */
+    mid().style.setProperty("--edr", r.toFixed(4));
     try { localStorage.setItem(RKEY, String(r)); } catch (e) {}
   }
   function resetRatio() {
-    f.body.style.flex = "";
-    pvCol().style.flex = "";
+    mid().style.removeProperty("--edr");
     try { localStorage.removeItem(RKEY); } catch (e) {}
   }
   function setupSplit() {
@@ -792,7 +835,8 @@
     });
   }
 
-  /* 窗口窄到放不下两栏时，换成一个切换按钮 */
+  /* 窗口窄到放不下两栏时，换成一个切换按钮。它放在右表头而不是工具条里：
+     窄屏的预览态会整块隐藏左表头，按钮要是在里面就跟着没了，切不回来 */
   function setupPvToggle() {
     var b = document.createElement("button");
     b.type = "button";
@@ -803,7 +847,7 @@
       b.textContent = on ? "正文" : "预览";
       if (on) previewNow();
     };
-    $("ed-tools").appendChild(b);
+    document.querySelector(".ed-head .hc-r").appendChild(b);
   }
 
   /* ---------------------------------------------------------------- 状态行 */
@@ -887,6 +931,13 @@
     });
     $("ed-new").onclick = function () { fresh(); state.dirty = false; validate(); paintList(); f.title.focus(); };
     $("ed-draft").onclick = function () { saveDraft(false); };
+    $("ed-disconnect").onclick = function () {
+      ask("断开本机服务？没发布的草稿仍留在这台电脑上。", { ok: "断开", cancel: "留着" }).then(function (y) {
+        if (!y) return;
+        try { localStorage.removeItem(KEYNAME); } catch (e) {}
+        showLock("已断开。要再改内容得重新输口令。");
+      });
+    };
     $("ed-publish").onclick = function () {
       if (MODE === "work") publishRows("work", collectWork(), "作品的两张表");
       else if (MODE === "plan") publishRows("plan", collectPlan(), "首页倒数日");
@@ -910,6 +961,9 @@
     });
 
     fresh();
+    document.body.dataset.mode = MODE;
+    setLocked(true);                 /* 先当没连上，连成了再放开 */
+    where();
     validate();
     unlock();
 
