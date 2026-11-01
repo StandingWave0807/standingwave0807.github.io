@@ -37,18 +37,19 @@
     <div class="pane prose">
       <h2 class="pt">特征值为什么是谱方法的入口</h2>
       <p class="note">把矩阵乘法还原成基的变换，再从对称矩阵推到傅里叶</p>
-<h2 id="_1">一句话</h2>
+<h2 id="_1">结论</h2>
 <p>矩阵作用在向量上通常是"又转又伸"，但在它自己的特征方向上只剩伸缩：</p>
 <div class="arithmatex">\[A v = \lambda v\]</div>
 <p>于是"重复作用 <span class="arithmatex">\(A^n\)</span>"这种问题，换到特征基下就变成逐坐标乘 <span class="arithmatex">\(\lambda^n\)</span>。谱方法指的就是这次换基，以及换完之后问题变得可分离这件事。</p>
-<h2 id="_2">对称矩阵是干净的那一类</h2>
+<h2 id="_2">对称矩阵</h2>
 <p>实对称矩阵可以正交对角化：存在正交阵 <span class="arithmatex">\(Q\)</span> 使</p>
 <div class="arithmatex">\[Q^{\mathsf T} A Q = \Lambda = \operatorname{diag}(\lambda_1,\dots,\lambda_n)\]</div>
-<p>三个后果一次拿到：特征值全为实数；不同特征值的特征向量自动正交；<span class="arithmatex">\(\|A\|_2=\max_i|\lambda_i|\)</span>。最后一条是稳定性分析的命门——迭代格式 <span class="arithmatex">\(e^{n}=A^{n}e^{0}\)</span> 一致有界，要求谱半径不超过 1，且模等于 1 的那些特征值不伴随若尔当块。</p>
-<h2 id="_3">为什么傅里叶是特例</h2>
+<p>结论：特征值全为实数；不同特征值的特征向量自动正交；<span class="arithmatex">\(\|A\|_2=\max_i|\lambda_i|\)</span>。</p>
+<p>最后一条是稳定性分析的重要判定：迭代格式 <span class="arithmatex">\(e^{n}=A^{n}e^{0}\)</span> 一致有界，要求谱半径不超过 1，且模等于 1 的那些特征值不伴随若尔当块。</p>
+<h2 id="_3">傅里叶：特例</h2>
 <p>取二阶差分矩阵（周期边界）</p>
 <div class="arithmatex">\[D = \begin{pmatrix} -2 &amp; 1 &amp; &amp; &amp; 1\\ 1 &amp; -2 &amp; 1 &amp; &amp; \\ &amp; \ddots &amp; \ddots &amp; \ddots &amp; \\ &amp; &amp; 1 &amp; -2 &amp; 1\\ 1 &amp; &amp; &amp; 1 &amp; -2 \end{pmatrix}\]</div>
-<p>它是实对称的，而且每行都是上一行循环平移——平移不变性把特征向量钉死成离散傅里叶基 <span class="arithmatex">\(v_k=(\omega^{jk})_j\)</span>，对应特征值 <span class="arithmatex">\(\lambda_k = -4\sin^2(\pi k/n)\)</span>。所以"用傅里叶分解解热方程"不是技巧，是这台矩阵的正交对角化。</p>
+<p>它是实对称的，而且每行都是上一行循环平移——平移不变性把特征向量固定为离散傅里叶基 <span class="arithmatex">\(v_k=(\omega^{jk})_j\)</span>，对应特征值 <span class="arithmatex">\(\lambda_k = -4\sin^2(\pi k/n)\)</span>。所以"用傅里叶分解解热方程"是矩阵的正交对角化。</p>
 <table>
 <thead>
 <tr>
@@ -80,7 +81,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="_4">走查一遍</h2>
+<h2 id="_4">数值验算</h2>
 <p><span class="arithmatex">\(n=4\)</span>、<span class="arithmatex">\(k=1\)</span> 时 <span class="arithmatex">\(\lambda_1=-4\sin^2(\pi/4)=-2\)</span>。取实向量 <span class="arithmatex">\(u=(0,1,0,-1)\)</span>，按 <span class="arithmatex">\(D\)</span> 的各行 <span class="arithmatex">\((-2,1,0,1)\)</span>、<span class="arithmatex">\((1,-2,1,0)\)</span>、<span class="arithmatex">\((0,1,-2,1)\)</span>、<span class="arithmatex">\((1,0,1,-2)\)</span> 逐行相乘：</p>
 <div class="arithmatex">\[Du=(0-2+0-1+1,\;0-2+0+0,\;0+1-0-1,\;0+0+0+2)=(0,-2,0,2)=-2u\]</div>
 <p>同理 <span class="arithmatex">\(w=(1,0,-1,0)\)</span> 也满足 <span class="arithmatex">\(Dw=-2w\)</span>。所以 <span class="arithmatex">\(\lambda=-2\)</span> 的特征子空间是二维的。复傅里叶向量 <span class="arithmatex">\(v_1=(1,i,-1,-i)\)</span> 与 <span class="arithmatex">\(v_3=\overline{v_1}\)</span> 是共轭对，实部虚部正好张成同一个平面：<span class="arithmatex">\(\operatorname{Re}v_1=w\)</span>，<span class="arithmatex">\(\operatorname{Im}v_1=u\)</span>。</p>
