@@ -24,7 +24,9 @@
   function bodyText() { return ed ? ed.getValue() : ""; }
   function setBody(t) { if (ed) ed.setValue(t); }
   var list = $("ed-list"), status = $("ed-status"), msg = $("ed-msg"), preview = $("ed-preview");
-  var state = { notes: [], drafts: {}, slug: null, key: null, dirty: false };
+  var SORTKEY = "lab-ed-sort";
+  var state = { notes: [], drafts: {}, slug: null, key: null, dirty: false,
+                sort: (function () { try { return localStorage.getItem(SORTKEY) || "date"; } catch (e) { return "date"; } })() };
   var tDraft = null, tPreview = null;
 
   /* ---------------------------------------------------------------- 服务调用 */
@@ -36,6 +38,7 @@
         if (!r.ok) {
           var err = new Error(j.error || j.why || ("HTTP " + r.status));
           err.status = r.status;
+          err.step = j.step || "";
           throw err;
         }
         return j;
@@ -52,6 +55,32 @@
     msg.textContent = text || "";
     msg.className = "ed-msg" + (kind ? " " + kind : "");
     msg.hidden = !text;
+  }
+
+  /* ---------------------------------------------------- 仓库状态：未推/脏/草稿 */
+  function gitstat() {
+    var box = $("ed-git");
+    if (!box || !state.key) return;
+    api("/api/status").then(function (j) {
+      var dirty = j.dirty || [];
+      var ahead = parseInt(j.ahead, 10);
+      var drafts = Object.keys(state.drafts).length;
+      var parts = [
+        ["分支 " + (j.branch || "?"), ""],
+        ["未推 " + (isNaN(ahead) ? "?" : ahead), ahead > 0 ? "warn" : "ok"],
+        ["脏 " + dirty.length, dirty.length ? "bad" : "ok"],
+        ["草稿 " + drafts, drafts ? "warn" : "ok"]
+      ];
+      box.innerHTML = "";
+      parts.forEach(function (p) {
+        var s = document.createElement("span");
+        s.className = "gk" + (p[1] ? " " + p[1] : "");
+        s.textContent = p[0];
+        box.appendChild(s);
+      });
+      box.title = dirty.length ? "未提交的改动：\n" + dirty.join("\n") : "工作区干净";
+      box.hidden = false;
+    }).catch(function () { /* 取不到就整行不显示，不拿假数字糊人 */ });
   }
 
   /* ------------------------------------------------------------ md <-> 字段 */
@@ -207,6 +236,7 @@
         state.dirty = false;
         if (!quiet) say("草稿已存进本机（仓库外）", "ok");
         paintList();
+        gitstat();
       })
       .catch(function (e) { if (!quiet) say("草稿没存上：" + e.message, "bad"); });
   }
@@ -226,22 +256,52 @@
   }
 
   /* ------------------------------------------------------------------ 列表 */
+  function sortedNotes() {
+    if (state.sort !== "stub") return state.notes;      /* 默认按日期，服务端已排好 */
+    return state.notes.slice().sort(function (a, b) {
+      return (b.stub ? 1 : 0) - (a.stub ? 1 : 0) || a.words - b.words ||
+             (a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+    });
+  }
+
+  function badge(box, cls, text) {
+    var b = document.createElement("b");
+    b.className = "d" + (cls ? " " + cls : "");
+    b.textContent = text;
+    box.appendChild(b);
+  }
+
   function paintList() {
     var box = list;
     box.innerHTML = "";
-    state.notes.forEach(function (n) {
+    sortedNotes().forEach(function (n) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "editem" + (n.slug === state.slug ? " on" : "");
-      var has = state.drafts[n.slug];
-      b.innerHTML = '<span class="t"></span><span class="m">' + esc(n.date.slice(5)) +
-        (has ? ' <b class="d">草稿</b>' : "") + "</span>";
-      b.querySelector(".t").textContent = n.title;
-      b.title = "/" + n.slug + "/";
+      var t = document.createElement("span");
+      t.className = "t";
+      t.textContent = n.title;
+      b.appendChild(t);
+
+      var m = document.createElement("span");
+      m.className = "m";
+      m.appendChild(document.createTextNode(n.date.slice(5)));
+      m.appendChild(document.createTextNode(" "));
+      if (n.stub) badge(m, "stub", "待写"); else badge(m, "w", n.words + " 字");
+      if (state.drafts[n.slug]) badge(m, "draft", "草稿");
+      b.appendChild(m);
+
+      b.title = "/" + n.slug + "/" + (n.stub ? " · 正文还是占位" : "");
       b.onclick = function () { open(n.slug); };
       box.appendChild(b);
     });
-    $("ed-count").textContent = state.notes.length + " 条";
+    var stubs = state.notes.filter(function (n) { return n.stub; }).length;
+    $("ed-count").textContent = state.notes.length + " 条" + (stubs ? " · " + stubs + " 待写" : "");
+    var btn = $("ed-sort");
+    if (btn) {
+      btn.textContent = state.sort === "stub" ? "待写优先" : "按日期";
+      btn.title = state.sort === "stub" ? "现在：占位的排前面，同组内字数少的在前" : "现在：按日期新到旧";
+    }
   }
 
   function open(slug) {
@@ -345,10 +405,10 @@
             : "已提交 " + r.sha + " 并推送。约 1–2 分钟后线上可见：" + r.url, "ok");
         state.dirty = false;
         api("/api/draft?slug=" + encodeURIComponent(c.slug), { method: "DELETE" }).catch(function () { });
-        return reloadNotes().then(paintList);
+        return reloadNotes().then(paintList).then(gitstat);
       }).catch(function (e) {
         setStatus("发布没成功", "bad");
-        say(e.message, "bad");
+        say((e.step ? "停在「" + e.step + "」：" : "") + e.message, "bad");
       }).then(function () { $("ed-publish").disabled = false; validate(); });
     });
   }
@@ -374,6 +434,7 @@
       setLocked(false);
       where();
       paintList();
+      gitstat();
     });
   }
 
@@ -752,8 +813,12 @@
           writeLocal(DKEY[type], null);
           $(type === "work" ? "w-revert" : "p-revert").hidden = true;
           if (type === "work") paintWork(data);
+          gitstat();
         })
-        .catch(function (e) { setStatus("发布没成功", "bad"); say(e.message, "bad"); })
+        .catch(function (e) {
+          setStatus("发布没成功", "bad");
+          say((e.step ? "停在「" + e.step + "」：" : "") + e.message, "bad");
+        })
         .then(function () { $("ed-publish").disabled = false; validate(); });
     });
   }
@@ -870,6 +935,11 @@
     $all("#ed-modes .chip").forEach(function (b) {
       b.onclick = function () { setMode(b.dataset.mode); };
     });
+    $("ed-sort").onclick = function () {
+      state.sort = state.sort === "stub" ? "date" : "stub";
+      try { localStorage.setItem(SORTKEY, state.sort); } catch (e) {}
+      paintList();
+    };
     ["p-label", "p-target"].forEach(function (id) {
       $(id).addEventListener("input", planTouched);
       $(id).addEventListener("change", planTouched);

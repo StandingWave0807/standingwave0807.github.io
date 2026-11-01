@@ -272,6 +272,15 @@ body.editmode .main{display:flex;overflow:hidden}
 .editem .m{font-size:11px;opacity:.72;white-space:nowrap}
 .editem .d{color:var(--warn)}
 .editem.on .d{color:var(--warnbg)}
+.editem .d{font-weight:700}
+.editem .d.w{font-weight:400;opacity:.72;color:inherit}
+.ed-git{display:flex;flex-wrap:wrap;gap:4px;margin:9px 0 2px}
+.ed-git .gk{border:1px solid var(--soft);padding:2px 7px;font-size:11px;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;color:var(--dim)}
+.ed-git .gk.ok{color:var(--ok)}
+.ed-git .gk.warn{color:var(--warn)}
+.ed-git .gk.bad{color:var(--bad)}
+.grp-row{display:flex;align-items:center;gap:6px}
+.grp-row button.mini{margin-left:auto;font-size:11px;padding:2px 7px}
 #ed-new,.ed-acts button{border:2px solid var(--line);background:var(--bg);color:var(--fg);font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:13px;font-weight:600;padding:5px 12px;cursor:pointer;border-radius:0}
 #ed-new{width:100%;margin-bottom:4px}
 .ed-acts{display:flex;gap:6px}
