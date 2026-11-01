@@ -18,7 +18,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var f = {
     title: $("f-title"), date: $("f-date"), sub: $("f-sub"), slug: $("f-slug"),
-    body: $("f-body")
+    pdf: $("f-pdf"), body: $("f-body")
   };
   var ed = null;                       /* CodeMirror 实例 */
   function bodyText() { return ed ? ed.getValue() : ""; }
@@ -86,7 +86,7 @@
   /* ------------------------------------------------------------ md <-> 字段 */
   function parseMd(md) {
     var m = /^---\n([\s\S]*?)\n---\n?/.exec(md || "");
-    var meta = { title: "", date: "", cat: "cs", sub: "", slug: "", tags: [] };
+    var meta = { title: "", date: "", cat: "cs", sub: "", slug: "", pdf: "", tags: [] };
     if (m) {
       m[1].split("\n").forEach(function (line) {
         var i = line.indexOf(":");
@@ -105,7 +105,7 @@
       slug: f.slug.value.trim(),
       meta: {
         title: f.title.value.trim(), date: f.date.value.trim(), cat: pickedCat(),
-        sub: f.sub.value.trim(), slug: f.slug.value.trim(), tags: tagList()
+        sub: f.sub.value.trim(), slug: f.slug.value.trim(), pdf: f.pdf.value.trim(), tags: tagList()
       },
       body: bodyText()
     };
@@ -117,6 +117,7 @@
     f.date.value = meta.date || "";
     f.sub.value = meta.sub || "";
     f.slug.value = meta.slug || "";
+    f.pdf.value = meta.pdf || "";
     setBody(body || "");
     setCat(meta.cat || "math");
     setTags(meta.tags || []);
@@ -244,6 +245,7 @@
   function serialize(c) {
     return "---\ntitle: " + c.meta.title + "\ndate: " + c.meta.date + "\ncat: " + c.meta.cat +
       "\ntags: [" + c.meta.tags.join(", ") + "]\nsub: " + c.meta.sub + "\nslug: " + c.meta.slug +
+      (c.meta.pdf ? "\npdf: " + c.meta.pdf : "") +
       "\n---\n\n" + c.body.trim() + "\n";
   }
 
@@ -969,7 +971,7 @@
     setupSplit();
     setupPvToggle();
 
-    ["title", "date", "sub", "slug"].forEach(function (k) {
+    ["title", "date", "sub", "slug", "pdf"].forEach(function (k) {
       f[k].addEventListener("input", touched);
     });
     f.date.addEventListener("change", touched);

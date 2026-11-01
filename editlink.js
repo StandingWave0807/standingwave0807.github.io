@@ -33,7 +33,7 @@
     }).then(function (j) {
       if (!j) return;
       var where = "服务在 :" + (j.port || "?") + " · " + (j.site || "");
-      settle(hasKey() ? "编辑面板 · 已连" : "编辑面板 · 待输口令", where);
+      settle(hasKey() ? "编辑面板" : "编辑面板 · 待输口令", where);
     }).catch(function () {
       settle("编辑面板 · 服务未开", "没连上 127.0.0.1:8720 —— 双击 sitekeeper\\start.cmd 后刷新");
     });
