@@ -7,7 +7,5 @@ sub: 从一次 stat 系统调用往下追，看数据在哪几层被复制
 slug: page-cache-why
 ---
 
-I'm a liitle Gemini.
-
-QAQ.
+我怎么知道文件系统为什么需要页缓存？
 
