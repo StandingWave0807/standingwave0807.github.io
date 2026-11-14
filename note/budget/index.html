@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>预算 · 永远的邻苯二酚</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/budget.css">
+<script src="/theme.js" defer></script>
+<script src="/dialog.js" defer></script>
+<script src="/picker.js" defer></script>
+<script src="/sync.js" defer></script>
+<script src="/bills.js" defer></script>
+<script src="/budget.js" defer></script>
+<script src="/hdr.js" defer></script>
+</head>
+<body class="bookmode editmode bgmode">
+<header>
+  <span class="chtag">预算</span>
+  <h1>钱怎么分</h1>
+  <span class="sp"></span>
+  <span class="passcount" id="bg-status">未连接</span>
+  <button class="mini" id="bg-mask" title="把金额打码，方便截图、共享屏幕（H）">打码</button>
+  <a href="/app/" title="手机上打开这个地址，加到主屏幕"><button class="mini" type="button">手机版</button></a>
+  <button class="mini" id="btnTheme">暗色</button>
+  <a href="/note/calendar/" title="日历（数据只在本机）"><button class="mini" type="button">日程</button></a>
+  <a href="/note/edit/"><button class="mini" type="button">编辑面板</button></a>
+</header>
+
+<div class="main">
+
+  <div id="bg-lock" hidden>
+    <div class="lockcard">
+      <h3>连本机服务</h3>
+      <p>账目只存在你电脑上的 <code>sitekeeper/data/budget.json</code>，在仓库外面，
+        不进 git、不会发布。这个页面本身只是个壳，没连上服务时什么数据都没有。</p>
+      <p id="bg-lockmsg" class="bad"></p>
+      <p><button type="button" class="pri" id="bg-retry">输入口令</button></p>
+      <p class="note">和编辑面板用同一个口令；在那边输过，这里会自动连上。服务没开的话：Windows 双击 <code>sitekeeper\start.cmd</code>，Mac / Linux 跑 <code>python sitekeeper/keeper.py</code>。</p>
+    </div>
+  </div>
+
+  <div id="bg-shell" class="bg-wrap" hidden>
+    <aside class="ed-side bg-side">
+      <div class="bg-month">
+        <button type="button" class="mini" id="bg-prev" title="上个月（[）">‹</button>
+        <button type="button" id="bg-mon" class="bg-mon" title="回到本月">2026-11</button>
+        <button type="button" class="mini" id="bg-next" title="下个月（]）">›</button>
+      </div>
+
+      <div class="grp grp-row">记一笔<b id="bg-kindlbl">支出</b></div>
+      <form id="bg-add" class="bg-add" autocomplete="off">
+        <div class="chips" id="bg-kind">
+          <button type="button" class="chip on" data-kind="out">支出</button>
+          <button type="button" class="chip" data-kind="in">收入</button>
+        </div>
+        <label for="a-amt">金额 <span class="bg-hint">可以写 12+8.5</span></label>
+        <input id="a-amt" type="text" inputmode="decimal" placeholder="0.00">
+        <label for="a-cat">分类</label>
+        <select id="a-cat"></select>
+        <label for="a-date">日期</label>
+        <div class="ed-daterow">
+          <input id="a-date" type="text" placeholder="2026-11-14">
+          <button type="button" id="a-datebtn">日历</button>
+        </div>
+        <label for="a-note">备注</label>
+        <input id="a-note" type="text" maxlength="120" list="bg-notes" placeholder="午饭、房租……">
+        <datalist id="bg-notes"></datalist>
+        <button type="submit" class="pri bg-addbtn">记下（Enter）</button>
+      </form>
+
+      <div class="grp grp-row">固定收支<b id="bg-reccount">0 项</b><button type="button" class="mini" id="bg-recapply" title="把还没记的固定项记进本月">记入本月</button></div>
+      <div id="bg-rec" class="bg-rec"></div>
+      <button type="button" id="bg-recadd" class="bg-linkbtn">＋ 加一项固定收支</button>
+
+      <div class="grp grp-row">分类<b id="bg-catcount">0 个</b></div>
+      <div id="bg-cats" class="bg-cats"></div>
+      <button type="button" id="bg-catadd" class="bg-linkbtn">＋ 新分类</button>
+
+      <div class="grp">设置</div>
+      <label for="s-cur">货币符号</label>
+      <input id="s-cur" type="text" maxlength="4" placeholder="¥">
+      <div class="bg-tools">
+        <button type="button" class="mini" id="bg-csv">导出本月 CSV</button>
+        <button type="button" class="mini" id="bg-csvall">导出全部 CSV</button>
+        <button type="button" class="mini" id="bg-json">下载备份</button>
+        <button type="button" class="mini" id="bg-import">导入账单 / CSV</button>
+        <input type="file" id="bg-file" accept=".csv,.xlsx,text/csv" hidden>
+      </div>
+      <p class="bg-small">每次保存前，本机服务会把上一版留在 <code>sitekeeper/data/budget-bak/</code>，最多 30 份。</p>
+    </aside>
+
+    <section class="bg-mid">
+      <div id="bg-tiles" class="bg-tiles"></div>
+      <div id="bg-pace" class="bg-pace"></div>
+
+      <div class="bg-sec">
+        <div class="bg-sech">
+          <h2>分配</h2>
+          <span class="bg-sp"></span>
+          <button type="button" class="mini" id="bg-copy" title="把上个月的分配额抄过来">照上月分配</button>
+          <button type="button" class="mini" id="bg-fill" title="待分配的钱按上月实际花费的比例摊到各分类">按上月花费摊开</button>
+        </div>
+        <div class="bg-tablewrap">
+          <table class="bg-table" id="bg-alloc">
+            <thead><tr><th>分类</th><th class="n">分配</th><th class="n" title="开了「结余滚入下月」的分类，从上月带过来的余额">结转</th><th class="n">已花</th><th class="n">剩余</th><th class="bar">进度</th></tr></thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-sec">
+        <div class="bg-sech">
+          <h2>流水</h2>
+          <span class="bg-sp"></span>
+          <input id="bg-q" type="search" placeholder="搜备注、分类、金额…（/）">
+          <select id="bg-fcat"><option value="">全部分类</option></select>
+        </div>
+        <div id="bg-txs" class="bg-txs"></div>
+      </div>
+
+      <div class="bg-sec">
+        <div class="bg-sech"><h2>近六个月</h2><span class="bg-sp"></span><span class="bg-legend"><i class="li-in"></i>收入 <i class="li-out"></i>支出</span></div>
+        <div id="bg-trend" class="bg-trend"></div>
+      </div>
+    </section>
+  </div>
+</div>
+<div id="bg-msg" class="bg-toast" hidden></div>
+</body>
+</html>

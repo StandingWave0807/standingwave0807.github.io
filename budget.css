@@ -1,0 +1,129 @@
+/* 预算页（/note/budget/）专用。只在这一页加载，不影响公开页面。 */
+.bg-wrap{display:grid;grid-template-columns:302px 1fr;width:100%;min-height:0}
+.bg-side select,.bg-mid select{border:2px solid var(--line);background:var(--bg);color:var(--fg);font-size:13.5px;padding:5px 6px;border-radius:0;width:100%}
+.bg-mid select{width:auto;font-size:12.5px;padding:2px 6px}
+.bg-side select:focus,.bg-mid input:focus,.bg-mid select:focus{outline:2px solid var(--fg);outline-offset:1px}
+.bg-hint{font-weight:400;color:var(--dim);margin-left:4px}
+.bg-month{display:flex;align-items:stretch;gap:6px;margin:2px 0 6px}
+.bg-month .bg-mon{flex:1;font-family:"JetBrains Mono",Consolas,monospace;font-size:16px;padding:4px 0}
+.bg-month .mini{font-size:16px;padding:0 12px}
+.bg-add .chips{margin-top:2px}
+.bg-addbtn{width:100%;margin-top:12px}
+#bg-kindlbl.in{color:var(--ok)}
+.bg-linkbtn{width:100%;margin-top:6px;border:1.5px dashed var(--line);font-weight:600;font-size:12.5px;padding:4px}
+.bg-small{font-size:11.5px;color:var(--dim);line-height:1.6;margin:10px 0 0}
+.bg-small code{font-size:11px}
+.bg-tools{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.bg-tools .mini{font-size:11.5px;padding:2px 8px}
+
+/* 侧栏里的分类 / 固定项行 */
+.bg-cats,.bg-rec{display:flex;flex-direction:column;gap:3px}
+.bg-crow{display:grid;grid-template-columns:1fr auto auto auto auto;gap:3px;align-items:center;font-size:13px}
+.bg-crow input{padding:2px 6px !important;font-size:13px !important;border-width:1.5px !important}
+.bg-crow button{border-width:1.5px;padding:0 6px;font-size:12px;font-weight:600;line-height:22px}
+.bg-crow button.on{background:var(--fg);color:var(--bg)}
+.bg-crow.hid input{color:var(--dim);text-decoration:line-through}
+.bg-rrow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;font-size:12.5px;border:1.5px solid var(--soft);padding:3px 6px}
+.bg-rrow .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bg-rrow .dim{color:var(--dim)}
+.bg-rrow .done{color:var(--ok)}
+.bg-rrow button{border-width:1.5px;padding:0 6px;font-size:11.5px;font-weight:600;line-height:20px}
+
+/* 中栏 */
+.bg-mid{flex:1;overflow:auto;padding:18px 28px 80px;min-width:0}
+.bg-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.bg-tile{border:2px solid var(--line);padding:8px 12px 7px}
+.bg-tile .k{font-size:11.5px;font-weight:700;color:var(--dim);font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif}
+.bg-tile .v{font-family:"JetBrains Mono",Consolas,monospace;font-size:19px;font-weight:700;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bg-tile .s{font-size:11.5px;color:var(--dim);font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif}
+.bg-tile.key{background:var(--fg);color:var(--bg)}.bg-tile.key .k,.bg-tile.key .s{color:var(--bg);opacity:.75}
+.bg-tile.bad{border-color:var(--bad)}.bg-tile.bad .v{color:var(--bad)}
+.bg-tile.ok .v{color:var(--ok)}
+.bg-pace{font-size:13px;color:var(--dim);margin:10px 0 0;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif}
+.bg-pace b{color:var(--fg)}.bg-pace .bad{color:var(--bad)}.bg-pace .ok{color:var(--ok)}
+.bg-sec{margin-top:26px}
+.bg-sech{display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--line);padding-bottom:6px;margin-bottom:8px;flex-wrap:wrap}
+.bg-sech h2{margin:0;font-size:17px;font-weight:800;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif}
+.bg-sp{flex:1}
+.bg-sech input[type=search]{border:2px solid var(--line);background:var(--bg);color:var(--fg);font-size:12.5px;padding:2px 8px;width:15em}
+
+/* 分配表 */
+.bg-tablewrap{overflow-x:auto}
+.bg-table{width:100%;border-collapse:collapse;font-size:13.5px;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif}
+.bg-table th{font-size:11.5px;color:var(--dim);font-weight:700;text-align:left;padding:4px 8px;border-bottom:1.5px solid var(--soft)}
+.bg-table td{padding:4px 8px;border-bottom:1px solid var(--soft);white-space:nowrap}
+.bg-table .n{text-align:right;font-family:"JetBrains Mono",Consolas,monospace}
+.bg-table th.n{font-family:inherit}
+.bg-table td.nm{font-weight:600;max-width:12em;overflow:hidden;text-overflow:ellipsis}
+.bg-table td.nm small{font-weight:400;color:var(--dim);margin-left:4px}
+.bg-table input.al{width:7.5em;text-align:right;border:1.5px solid var(--soft);background:var(--bg);color:var(--fg);font-family:"JetBrains Mono",Consolas,monospace;font-size:13px;padding:1px 6px}
+.bg-table input.al:hover{border-color:var(--dim)}
+.bg-table input.al:focus{border-color:var(--line);outline:none}
+.bg-table td.bad{color:var(--bad);font-weight:700}
+.bg-table td.dim{color:var(--dim)}
+.bg-table th.bar,.bg-table td.bar{width:34%;min-width:120px}
+.bg-table tfoot td{border-top:2px solid var(--line);border-bottom:0;font-weight:700}
+.bg-table tr.click{cursor:pointer}
+.bg-table tr.click:hover td{background:var(--hover)}
+.bg-table tr.sel td{background:var(--hover)}
+.bg-bar{position:relative;height:12px;border:1.5px solid var(--line);background:var(--bg)}
+.bg-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--fg)}
+.bg-bar i.over{background:var(--bad)}
+.bg-bar i.warn{background:var(--warn)}
+.bg-bar b{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--dim)}
+.bg-bar.none{border-style:dashed;border-color:var(--soft)}
+
+/* 流水 */
+.bg-txs{font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;font-size:13.5px}
+.bg-day{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);font-weight:700;margin:12px 0 2px;padding:0 6px}
+.bg-tx{display:grid;grid-template-columns:7em 1fr auto auto;gap:10px;align-items:center;padding:4px 6px;border-bottom:1px solid var(--soft)}
+.bg-tx:hover{background:var(--hover)}
+.bg-tx .c{font-size:12px;border:1.5px solid var(--line);padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.bg-tx .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
+.bg-tx .t .rec{font-size:11px;color:var(--dim);margin-left:6px}
+.bg-tx .a{font-family:"JetBrains Mono",Consolas,monospace;font-weight:700;text-align:right;cursor:text}
+.bg-tx .a.in{color:var(--ok)}
+.bg-tx .x{border:0;background:none;color:var(--dim);padding:0 4px;font-size:15px;line-height:1;visibility:hidden}
+.bg-tx:hover .x{visibility:visible}
+.bg-tx .x:hover{color:var(--bad)}
+.bg-tx input,.bg-tx select{font-size:12.5px;border:1.5px solid var(--line);background:var(--bg);color:var(--fg);padding:1px 4px;width:100%;min-width:0}
+.bg-tx.editing{background:var(--hover)}
+.bg-empty{color:var(--dim);font-size:13px;padding:16px 6px}
+
+/* 趋势 */
+.bg-trend svg{display:block;width:100%;height:auto;max-height:220px}
+.bg-trend text{font:11px -apple-system,"Segoe UI","PingFang SC",sans-serif;fill:var(--dim)}
+.bg-trend text.v{fill:var(--fg);font-family:"JetBrains Mono",Consolas,monospace;font-size:10px}
+.bg-trend .rin{fill:none;stroke:var(--ok);stroke-width:2}
+.bg-trend .rout{fill:var(--fg)}
+.bg-trend .rout.cur{fill:var(--dim)}
+.bg-trend .ax{stroke:var(--line);stroke-width:1.5}
+.bg-legend{font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:5px;font-family:-apple-system,"Segoe UI",sans-serif}
+.bg-legend i{display:inline-block;width:10px;height:10px;margin-left:6px}
+.bg-legend .li-in{border:2px solid var(--ok)}.bg-legend .li-out{background:var(--fg)}
+
+/* 打码 */
+body.bg-masked .m{filter:blur(6px);transition:filter .15s}
+body.bg-masked .m:hover{filter:none}
+#bg-mask.on{background:var(--fg);color:var(--bg)}
+
+/* 提示条 */
+.bg-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:7px 14px;font:13px/1.5 -apple-system,"Segoe UI","PingFang SC",sans-serif;z-index:60;display:flex;gap:12px;align-items:center;max-width:92vw}
+.bg-toast.bad{background:var(--bad)}
+.bg-toast button{border:1.5px solid var(--bg);background:transparent;color:var(--bg);padding:0 8px;font-size:12px}
+
+@media (max-width:860px){
+  body.bgmode{overflow:auto}
+  body.bgmode .main{overflow:visible;display:block}
+  .bg-wrap{display:flex;flex-direction:column-reverse}
+  .bg-side{border-right:0;border-top:2px solid var(--line);overflow:visible}
+  .bg-mid{overflow:visible;padding:14px 14px 30px}
+  .bg-tx{grid-template-columns:5.5em 1fr auto auto;gap:6px}
+  .bg-sech input[type=search]{width:100%}
+  header{flex-wrap:wrap}
+}
+.bg-side .grp{margin:18px 0 6px;font:700 12.5px/1.5 -apple-system,"Segoe UI","PingFang SC",sans-serif;color:var(--dim);border-bottom:1.5px solid var(--line);padding-bottom:3px}
+.bg-side .grp b{color:var(--fg);margin-left:6px;font-weight:700}
+.bg-side .grp-row{display:flex;align-items:center;gap:6px}
+.bg-side .grp-row button.mini{margin-left:auto;font-size:11px;padding:1px 7px;border-width:1.5px}
+.bg-side .grp:first-of-type{margin-top:12px}

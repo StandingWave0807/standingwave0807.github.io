@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>日程 · 永远的邻苯二酚</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/budget.css">
+<link rel="stylesheet" href="/calendar.css">
+<script src="/theme.js" defer></script>
+<script src="/dialog.js" defer></script>
+<script src="/picker.js" defer></script>
+<script src="/sync.js" defer></script>
+<script src="/calendar.js" defer></script>
+<script src="/hdr.js" defer></script>
+</head>
+<body class="bookmode editmode bgmode calmode">
+<header>
+  <span class="chtag">日程</span>
+  <h1>日历</h1>
+  <span class="sp"></span>
+  <span class="passcount" id="cl-status">未连接</span>
+  <a href="/app/" title="手机上打开这个地址，加到主屏幕"><button class="mini" type="button">手机版</button></a>
+  <button class="mini" id="btnTheme">暗色</button>
+  <a href="/note/budget/"><button class="mini" type="button">预算</button></a>
+  <a href="/note/edit/"><button class="mini" type="button">编辑面板</button></a>
+</header>
+
+<div class="main">
+
+  <div id="cl-lock" hidden>
+    <div class="lockcard">
+      <h3>连本机服务</h3>
+      <p>日程只存在你电脑上的 <code>sitekeeper/data/calendar.json</code>，在仓库外面，
+        不进 git、不会发布。</p>
+      <p id="cl-lockmsg" class="bad"></p>
+      <p><button type="button" class="pri" id="cl-retry">输入口令</button></p>
+      <p class="note">和编辑面板、预算用同一个口令。服务没开的话：Windows 双击 <code>sitekeeper\start.cmd</code>，Mac / Linux 跑 <code>python sitekeeper/keeper.py</code>。</p>
+    </div>
+  </div>
+
+  <div id="cl-shell" class="bg-wrap" hidden>
+    <aside class="ed-side bg-side">
+      <div class="grp grp-row"><span id="cl-formt">新日程</span><button type="button" class="mini" id="cl-new" hidden>＋ 新建</button></div>
+      <form id="cl-form" autocomplete="off">
+        <label for="e-title">标题</label>
+        <input id="e-title" type="text" maxlength="80" placeholder="组会、交作业、看牙……">
+        <label for="e-date">日期</label>
+        <div class="ed-daterow">
+          <input id="e-date" type="text" placeholder="2026-11-14">
+          <button type="button" id="e-datebtn">日历</button>
+        </div>
+        <div class="cl-two">
+          <label class="cl-chk"><input type="checkbox" id="e-allday"> 全天</label>
+          <span id="e-endwrap" hidden><label for="e-end">到（可选，多天）</label><input id="e-end" type="text" placeholder="2026-11-16"></span>
+        </div>
+        <div class="cl-two" id="e-times">
+          <span><label for="e-start">开始</label><input id="e-start" type="time" value="09:00"></span>
+          <span><label for="e-finish">结束</label><input id="e-finish" type="time" value="10:00"></span>
+        </div>
+        <label>分类</label>
+        <div class="chips" id="e-cats"></div>
+        <label for="e-rep">重复</label>
+        <div class="cl-two">
+          <select id="e-rep">
+            <option value="none">不重复</option>
+            <option value="daily">每天</option>
+            <option value="weekdays">工作日</option>
+            <option value="weekly">每周</option>
+            <option value="biweekly">每两周</option>
+            <option value="monthly">每月</option>
+            <option value="yearly">每年</option>
+          </select>
+          <input id="e-until" type="text" placeholder="截止日（可空）" hidden>
+        </div>
+        <label for="e-rem">提醒</label>
+        <select id="e-rem" title="手机 App 会把提醒推进 iPhone「提醒事项」，到点弹窗">
+          <option value="">不提醒</option>
+          <option value="0">开始时</option>
+          <option value="5">提前 5 分钟</option>
+          <option value="10">提前 10 分钟</option>
+          <option value="15">提前 15 分钟</option>
+          <option value="30">提前 30 分钟</option>
+          <option value="60">提前 1 小时</option>
+          <option value="120">提前 2 小时</option>
+          <option value="1440">提前 1 天</option>
+        </select>
+        <label for="e-note">备注</label>
+        <textarea id="e-note" rows="3" maxlength="2000" placeholder="地点、链接、要带的东西"></textarea>
+        <div class="cl-btns">
+          <button type="submit" class="pri" id="e-save">加上（Ctrl+Enter）</button>
+          <button type="button" id="e-del" hidden>删除</button>
+          <button type="button" id="e-cancel" hidden>取消</button>
+        </div>
+      </form>
+
+      <div class="grp">接下来两周<b id="cl-upcount"></b></div>
+      <div id="cl-up" class="cl-up"></div>
+
+      <div class="grp">显示</div>
+      <div id="cl-cats" class="cl-legend"></div>
+      <div class="cl-legend" id="cl-ovl">
+        <label class="cl-chk"><input type="checkbox" data-ovl="notes"> <i class="ov ov-notes"></i>笔记日期</label>
+        <label class="cl-chk"><input type="checkbox" data-ovl="bills"> <i class="ov ov-bills"></i>预算里的固定收支</label>
+        <label class="cl-chk"><input type="checkbox" data-ovl="countdown"> <i class="ov ov-cd"></i>首页倒数日</label>
+      </div>
+      <button type="button" id="cl-catadd" class="bg-linkbtn">＋ 新分类</button>
+
+      <div class="grp">导出</div>
+      <div class="bg-tools">
+        <button type="button" class="mini" id="cl-ics" title="导进手机或电脑自带的日历">导出 .ics</button>
+        <button type="button" class="mini" id="cl-json">下载备份</button>
+      </div>
+      <p class="bg-small">快捷键：<code>[</code> <code>]</code> 翻页，<code>t</code> 回今天，<code>m</code> <code>w</code> <code>l</code> 切月 / 周 / 列表，<code>n</code> 新建。</p>
+    </aside>
+
+    <section class="cl-mid">
+      <div class="cl-bar">
+        <button type="button" class="mini" id="cl-prev" title="上一页（[）">‹</button>
+        <button type="button" class="mini" id="cl-today" title="今天（t）">今天</button>
+        <button type="button" class="mini" id="cl-next" title="下一页（]）">›</button>
+        <h2 id="cl-title">2026 年 11 月</h2>
+        <span class="bg-sp"></span>
+        <input id="cl-q" type="search" placeholder="搜日程…（/）">
+        <div class="chips" id="cl-views">
+          <button type="button" class="chip on" data-v="month">月</button>
+          <button type="button" class="chip" data-v="week">周</button>
+          <button type="button" class="chip" data-v="list">列表</button>
+        </div>
+      </div>
+      <div id="cl-view" class="cl-view"></div>
+    </section>
+  </div>
+</div>
+<div id="bg-msg" class="bg-toast" hidden></div>
+</body>
+</html>

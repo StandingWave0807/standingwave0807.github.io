@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="邻苯">
+<title>邻苯 · 记账和日程</title>
+<link rel="manifest" href="/app/manifest.webmanifest">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/app/icon-180.png">
+<link rel="stylesheet" href="/app/app.css">
+<script src="/sync.js" defer></script>
+<script src="/bills.js" defer></script>
+<script src="/app/app.js" defer></script>
+</head>
+<body>
+<div class="top">
+  <h1 id="title">记账</h1>
+  <button class="sync" id="syncbtn" type="button"><i></i><span id="synctxt">…</span></button>
+</div>
+
+<div id="gate" class="gate" hidden>
+  <h2>先连上同步</h2>
+  <p>账本和日程加密后存在你的仓库里，这台设备第一次用要填一次 GitHub 令牌和同步口令，之后会记住。</p>
+  <p class="dim small">在电脑的预算页点过「同步」并设好口令的话，这里选「这台设备加入」，口令填同一个。</p>
+  <p><button class="btn pri wide" id="gatebtn" type="button">连接</button></p>
+  <p class="dim small" id="gatemsg"></p>
+</div>
+
+<main id="app" hidden>
+  <section class="view" id="v-money"></section>
+  <section class="view" id="v-cal" hidden></section>
+  <section class="view set" id="v-set" hidden></section>
+</main>
+
+<button class="fab" id="fab" type="button" hidden aria-label="新日程">＋</button>
+
+<nav class="tabs" id="tabs" hidden>
+  <button type="button" data-v="money" class="on"><b>¥</b>记账</button>
+  <button type="button" data-v="cal"><b>▦</b>日程</button>
+  <button type="button" data-v="set"><b>⚙</b>设置</button>
+</nav>
+<noscript>要开 JavaScript。</noscript>
+</body>
+</html>

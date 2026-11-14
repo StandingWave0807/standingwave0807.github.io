@@ -1,0 +1,115 @@
+/* 手机 App：和站点同一套黑线版式，跟随系统深浅色 */
+:root{--bg:#fff;--fg:#111;--dim:#6b6b6b;--line:#111;--soft:#e6e6e6;--hover:#f3f3f3;--ok:#1f7a3a;--okbg:#e9f5ec;--bad:#b42318;--badbg:#fdecea;--warn:#a15c00;--warnbg:#fff4e0;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --top:env(safe-area-inset-top,0px);--bot:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#121212;--fg:#ececec;--dim:#9a9a9a;--line:#d8d8d8;--soft:#2c2c2c;--hover:#1d1d1d;--ok:#6fcf8b;--okbg:#16301e;--bad:#ff8a80;--badbg:#3a1714;--warn:#f0b35a;--warnbg:#3a2a10}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);-webkit-text-size-adjust:100%}
+body{padding:calc(var(--top) + 52px) 0 calc(var(--bot) + 64px);min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden,[hidden]{display:none!important}
+.mono,.amt{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* 顶栏 / 底栏 */
+.top{position:fixed;top:0;left:0;right:0;z-index:20;background:var(--bg);border-bottom:2px solid var(--line);padding:var(--top) 14px 0;height:calc(var(--top) + 50px);display:flex;align-items:center;gap:10px}
+.top h1{font-size:18px;margin:0;flex:1;letter-spacing:.01em}
+.sync{font-size:12px;color:var(--dim);border:0;background:none;padding:6px 0;display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block}
+.sync.ok i{background:var(--ok)}.sync.bad i{background:var(--bad)}.sync.busy i{background:var(--warn)}
+.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--bg);border-top:2px solid var(--line);display:flex;padding-bottom:var(--bot)}
+.tabs button{flex:1;border:0;background:none;padding:9px 0 10px;font-size:13px;color:var(--dim);display:flex;flex-direction:column;align-items:center;gap:1px}
+.tabs button b{font-size:19px;line-height:1.1;font-weight:400}
+.tabs button.on{color:var(--fg);font-weight:700}
+
+.view{padding:12px 14px 20px;max-width:640px;margin:0 auto}
+h2{font-size:13px;color:var(--dim);font-weight:600;margin:20px 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+h2 button{font-size:13px}
+.card{border:2px solid var(--line);padding:12px}
+.row{display:flex;gap:8px;align-items:center}
+.grow{flex:1;min-width:0}
+.btn{border:2px solid var(--line);background:var(--bg);padding:8px 14px;cursor:pointer;border-radius:0}
+.btn.pri{background:var(--fg);color:var(--bg)}
+.btn.sm{padding:4px 10px;font-size:13px;border-width:1.5px}
+.btn.wide{width:100%;padding:11px}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.link{border:0;background:none;color:var(--dim);text-decoration:underline;padding:0;cursor:pointer}
+input[type=text],input[type=date],input[type=time],input[type=number],input[type=search],select,textarea{width:100%;border:2px solid var(--line);background:var(--bg);padding:8px 10px;border-radius:0;-webkit-appearance:none;appearance:none;min-height:42px}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--fg) 50%),linear-gradient(135deg,var(--fg) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--fg);outline-offset:1px}
+label.f{display:block;font-size:12.5px;color:var(--dim);margin:10px 0 4px}
+.dim{color:var(--dim)}
+.small{font-size:12.5px}
+
+/* 记账 */
+.mon{display:flex;align-items:center;justify-content:space-between;margin:2px 0 10px}
+.mon b{font-size:17px}
+.mon button{border:0;background:none;font-size:20px;padding:4px 10px}
+.tiles{display:grid;grid-template-columns:1fr 1fr 1fr;border:2px solid var(--line)}
+.tiles div{padding:8px 10px;border-right:1px solid var(--soft)}
+.tiles div:last-child{border-right:0}
+.tiles small{display:block;font-size:11.5px;color:var(--dim)}
+.tiles .amt{font-size:16px;font-weight:700}
+.neg{color:var(--bad)}.pos{color:var(--ok)}
+.add .amtin{font-family:var(--mono);font-size:30px;font-weight:700;border:0;border-bottom:2px solid var(--line);padding:4px 0;min-height:52px;width:100%;background:none}
+.add .amtin:focus{outline:none;border-bottom-color:var(--fg)}
+.kind{display:flex;border:2px solid var(--line);width:max-content}
+.kind button{border:0;background:none;padding:4px 14px;font-size:14px}
+.kind button.on{background:var(--fg);color:var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+.chip{border:1.5px solid var(--line);background:none;padding:4px 11px;font-size:14px;border-radius:0}
+.chip.on{background:var(--fg);color:var(--bg)}
+.bars .b{padding:7px 0;border-bottom:1px solid var(--soft)}
+.bars .b:last-child{border-bottom:0}
+.bars .t{display:flex;justify-content:space-between;font-size:14px}
+.bars .bar{height:5px;background:var(--soft);margin-top:4px;position:relative}
+.bars .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--fg)}
+.bars .bar i.over{background:var(--bad)}
+.bars .bar i.nobud{background:var(--dim);opacity:.45}
+.list .day{font-size:12.5px;color:var(--dim);margin:12px 0 2px;display:flex;justify-content:space-between}
+.list .it{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--soft);cursor:pointer}
+.list .it .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .it .sub{font-size:12px;color:var(--dim)}
+.list .it .amt{font-weight:600}
+.empty{color:var(--dim);text-align:center;padding:22px 0;font-size:14px}
+.banner{border:2px solid var(--line);padding:10px 12px;margin:10px 0;display:flex;gap:10px;align-items:center;font-size:14px}
+.banner.warn{border-color:var(--warn);background:var(--warnbg)}
+
+/* 日程 */
+.ev{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--soft);cursor:pointer;align-items:flex-start}
+.ev .tm{width:52px;flex:none;font-family:var(--mono);font-size:13px;padding-top:1px}
+.ev .bar{width:4px;align-self:stretch;flex:none}
+.ev .nm{flex:1;min-width:0}
+.ev .sub{font-size:12px;color:var(--dim)}
+.ev.ro{cursor:default;opacity:.75}
+.daygrp{margin-top:14px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;border-bottom:2px solid var(--line);padding-bottom:3px}
+.daygrp.today{color:var(--fg)}
+.daygrp span{font-weight:400;color:var(--dim)}
+.fab{position:fixed;right:18px;bottom:calc(var(--bot) + 76px);width:54px;height:54px;border:2px solid var(--line);background:var(--fg);color:var(--bg);font-size:28px;line-height:1;z-index:15}
+
+/* 弹层 */
+.sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);border-top:3px solid var(--line);width:100%;max-width:640px;max-height:92vh;overflow:auto;padding:14px 16px calc(var(--bot) + 16px)}
+.sheet h3{margin:0 0 6px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+.sheet .acts{display:flex;gap:8px;margin-top:16px}
+.sheet .acts .btn{flex:1;padding:11px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chk{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:14px}
+.chk input{width:20px;height:20px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 142px);background:var(--fg);color:var(--bg);padding:9px 14px;font-size:14px;z-index:60;max-width:92vw;display:flex;gap:12px;align-items:center}
+.toast.bad{background:var(--bad);color:#fff}
+.toast button{border:0;background:none;color:inherit;text-decoration:underline;font-weight:700}
+
+/* 设置 */
+.set .it{padding:11px 0;border-bottom:1px solid var(--soft);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.guide{font-size:14px}
+.guide ol{padding-left:1.3em;margin:6px 0 10px}
+.guide li{margin:3px 0}
+.guide code,.guide .k{font-family:var(--mono);font-size:12.5px;background:var(--hover);padding:0 3px}
+.guide details{border:2px solid var(--line);padding:8px 10px;margin:8px 0}
+.guide summary{font-weight:700;cursor:pointer}
+.copy{display:flex;gap:6px;margin:4px 0}
+.copy input{font-family:var(--mono);font-size:12px;min-height:34px;padding:4px 6px}
+
+.gate{padding:30px 18px;max-width:520px;margin:0 auto}
+.gate h2{font-size:20px;color:var(--fg);margin:0 0 8px}
+.gate p{margin:8px 0}

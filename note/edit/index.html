@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>内容面板 · 永远的邻苯二酚</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/site.css">
 <link rel="stylesheet" href="/assets/katex/katex.min.css">
 <script src="/theme.js" defer></script>
@@ -14,6 +16,7 @@
 <script src="/assets/katex/katex.min.js" defer></script>
 <script src="/assets/katex/auto-render.min.js" defer></script>
 <script src="/assets/cm/lab-editor.js" defer></script>
+<script src="/formula.js" defer></script>
 <script src="/edit.js" defer></script>
 <script src="/hdr.js" defer></script>
 </head>
@@ -24,7 +27,10 @@
   <span class="sp"></span>
   <span class="passcount" id="ed-status">未连接</span>
   <span class="passcount" id="ed-where" title="本机服务回报的仓库路径"></span>
+  <button class="mini" id="btnFocus" title="收起左栏，只留正文和预览（Ctrl+.）">专注</button>
   <button class="mini" id="btnTheme">暗色</button>
+  <a href="/note/calendar/" title="日历（数据只在本机）"><button class="mini" type="button">日程</button></a>
+  <a href="/note/budget/" title="记账和按月分配（数据只在本机）"><button class="mini" type="button">预算</button></a>
   <a href="/notes.html" id="ed-back"><button class="mini" type="button">回笔记列表</button></a>
 </header>
 
@@ -37,7 +43,7 @@
         <code>sitekeeper</code>，口令只在浏览器本地。</p>
       <p id="ed-lockmsg" class="bad"></p>
       <p><button type="button" class="pri" id="ed-retry">输入口令</button></p>
-      <p class="note">服务没开的话：双击 <code>sitekeeper\start.cmd</code>。</p>
+      <p class="note">服务没开的话：Windows 双击 <code>sitekeeper\start.cmd</code>；Mac / Linux 在终端里跑 <code>python sitekeeper/keeper.py</code>。口令存过一次，服务开着就会自动连上。</p>
       <p class="note">没连上的时候整页是禁用的：字段读不了、发布点不动。真正的把关在本机服务那边——没有口令它一律回 401，路径也只认白名单那几个文件。</p>
     </div>
   </div>
@@ -55,6 +61,7 @@
 
       <div id="pane-note">
         <div class="grp grp-row">笔记<b id="ed-count">0 条</b><button type="button" id="ed-sort" class="mini">按日期</button></div>
+        <input id="ed-q" class="ed-q" type="search" placeholder="搜标题、标签、摘要…（按 /）" title="搜标题、标签、摘要、地址名；回车打开第一条，Esc 清空" autocomplete="off" spellcheck="false">
         <div id="ed-list" class="ed-list"></div>
         <button type="button" id="ed-new">＋ 新建一条</button>
 
@@ -75,12 +82,21 @@
         </div>
         <label for="tag-input">标签</label>
         <div class="tagbox" id="ed-tags"><input id="tag-input" type="text" placeholder="回车加一个"></div>
-        <label for="f-sub">摘要（列表页那一行）</label>
+        <label for="f-sub">摘要（列表页那一行，不换行）</label>
         <textarea id="f-sub" rows="2"></textarea>
         <label for="f-slug">地址名</label>
-        <input id="f-slug" type="text" placeholder="eigenvalue-spectral-entry" spellcheck="false" autocomplete="off">
-        <label for="f-pdf">资源 PDF（仓库内路径或外链，可留空）</label>
-        <input id="f-pdf" type="text" placeholder="/files/eigenvalue-spectral-entry.pdf" spellcheck="false" autocomplete="off">
+        <div class="ed-daterow">
+          <input id="f-slug" type="text" placeholder="eigenvalue-spectral-entry" spellcheck="false" autocomplete="off">
+          <button type="button" id="btn-slug" hidden>改地址</button>
+        </div>
+        <label for="f-pdf">资源 PDF（访客可预览、下载；可留空）</label>
+        <div class="ed-daterow">
+          <input id="f-pdf" type="text" placeholder="/files/xxx.pdf 或外链" spellcheck="false" autocomplete="off">
+          <button type="button" id="btn-pdf" title="选一个 PDF 上传，也可以直接拖进面板">上传</button>
+        </div>
+        <input id="pdf-file" type="file" accept="application/pdf,.pdf" hidden>
+        <input id="img-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple hidden>
+        <p class="note pdf-info" id="pdf-info" hidden></p>
         <p class="note" id="ed-why" hidden></p>
       </div>
 
@@ -114,7 +130,7 @@
       </div>
       <button type="button" class="wide" id="ed-disconnect">断开本机服务</button>
       <p class="ed-msg" id="ed-msg" hidden></p>
-      <p class="note">发布就是让本机服务改文件、重建页面、提交并推送；GitHub 的钥匙只在这台电脑上。</p>
+      <p class="note">发布就是让本机服务改文件、重建页面、提交并推送；GitHub 的钥匙只在这台电脑上。快捷键：Ctrl+S 存草稿，Ctrl+Enter 发布，Ctrl+M 写公式（光标在公式里就是改它；预览里点公式也能改），Ctrl+F 查找、Ctrl+H 替换，Ctrl+B / I / K 加粗、斜体、链接，Ctrl+. 专注模式，/ 搜笔记。图片直接粘贴或拖进正文就会上传。</p>
     </aside>
 
     <section class="ed-mid">
@@ -125,7 +141,12 @@
         </div>
         <span class="hg" aria-hidden="true"></span>
         <div class="hc hc-r">
-          <span class="ed-hint">预览 · 与线上同一套渲染</span>
+          <div class="ed-pvtabs" role="tablist">
+            <button type="button" class="on" data-pv="md" title="与线上同一套渲染">正文预览</button>
+            <button type="button" data-pv="diff" title="跟线上版本比，这次改了哪些行">改动</button>
+            <button type="button" data-pv="hist" title="这条笔记在 git 里的历次版本，可对比、可取回">历史</button>
+            <button type="button" data-pv="pdf" disabled title="这条笔记挂的 PDF">PDF</button>
+          </div>
         </div>
       </div>
       <div class="ed-row" id="ed-row">
@@ -133,6 +154,11 @@
         <div class="ed-vsplit" id="ed-split" role="separator" aria-orientation="vertical"
           tabindex="0" title="左右拖动分配宽度，双击复位"></div>
         <div class="ed-preview prose" id="ed-preview"><p class="note">左边写字，这里就是线上样子。</p></div>
+        <div class="ed-preview ed-pdf" id="ed-pdf">
+          <p class="note" id="ed-pdf-note" hidden></p>
+          <iframe id="ed-pdf-frame" title="PDF 预览"></iframe>
+        </div>
+        <div class="ed-preview ed-aux" id="ed-aux"></div>
       </div>
       <div class="ed-stat" id="ed-stat"></div>
 
