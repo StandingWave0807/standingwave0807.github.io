@@ -1,4 +1,5 @@
-/* 手机 App：记账 + 日程 + 设置。数据格式和电脑上的预算页、日程页完全一样，
+/* 手机 App：记账 / 预算 / 日程 / 设置。数据格式和电脑上的预算页、日程页完全一样，
+   电脑上能做的事这里都能做：按月分配、结余结转、固定收支、分类增删改排、趋势；日程的增删改、重复、提醒、分类。
    本机只在 IndexedDB 里存一份加密副本（离线能看能记），联网就经 LabSync 和仓库里的 sync/*.dat 合并。
 
    快捷指令进来的入口（都只是打开一个网址）：
@@ -11,6 +12,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var WD = "一二三四五六日";
   var PALETTE = ["#1f5c9e", "#1f7a3a", "#a15c00", "#8e3b8e", "#b42318", "#0f766e", "#6b6b6b", "#5b4bb7"];
+  var CATCOL = ["#e8833a", "#d9534f", "#3a8fd9", "#5cb85c", "#8e6bd1", "#e0a800", "#17a2b8", "#c06c84", "#6c757d", "#2f9e8f"];
   var REPN = { none: "不重复", daily: "每天", weekdays: "工作日", weekly: "每周", biweekly: "每两周", monthly: "每月", yearly: "每年" };
   var REMN = [["", "不提醒"], ["0", "开始时"], ["5", "提前 5 分钟"], ["10", "提前 10 分钟"], ["15", "提前 15 分钟"],
               ["30", "提前 30 分钟"], ["60", "提前 1 小时"], ["120", "提前 2 小时"], ["1440", "提前 1 天"]];
@@ -18,8 +20,10 @@
                       ["study", "学习"], ["fun", "娱乐"], ["save", "存下来", true]];
   var SHORTCUT = "邻苯日程提醒";
   var PREF = "phenol-app-";
+  var TITLES = { money: "记账", plan: "预算", cal: "日程", set: "设置" };
 
-  var S = { tab: "money", budget: null, cal: null, month: "", kind: "out", cat: "", days: 60, started: false };
+  var S = { tab: "money", budget: null, cal: null, month: "", filter: null, q: "", searching: false,
+            calMonth: "", sel: "", fold: false, started: false };
 
   /* ------------------------------------------------------------ 工具 */
   function p2(n) { return (n < 10 ? "0" : "") + n; }
@@ -64,10 +68,15 @@
   }
   function plain(c) { return (c / 100).toFixed(2).replace(/\.00$/, ""); }
   function nice(s) { var d = parse(s); return (d.getMonth() + 1) + "月" + d.getDate() + "日 周" + WD[dow(s)]; }
+  function rel(s) {
+    var r = diff(today(), s);
+    return r === 0 ? "今天" : r === 1 ? "明天" : r === 2 ? "后天" : r === -1 ? "昨天" : r === -2 ? "前天" : r > 0 ? r + " 天后" : (-r) + " 天前";
+  }
+  function monLabel(m) { return (+m.slice(0, 4)) + " 年 " + (+m.slice(5, 7)) + " 月"; }
+  function initial(s) { return String(s || "?").trim().charAt(0) || "?"; }
 
   function toast(text, kind, action, ms) {
     var el = $("toast");
-    if (!el) { el = document.createElement("div"); el.id = "toast"; document.body.appendChild(el); }
     el.className = "toast" + (kind ? " " + kind : "");
     el.innerHTML = "<span>" + esc(text) + "</span>";
     if (action) {
@@ -80,6 +89,21 @@
     el.hidden = false;
     clearTimeout(toast.t);
     toast.t = setTimeout(function () { el.hidden = true; }, ms || 2600);
+  }
+  /* 系统 confirm 在主屏 App 里很丑，用自己的 */
+  function ask(text, okLabel, danger) {
+    return new Promise(function (res) {
+      var m = sheet('<p style="margin:6px 2px 4px;font-size:15.5px">' + esc(text) + "</p>" +
+        '<div class="acts"><button type="button" class="btn" data-x="no">取消</button>' +
+        '<button type="button" class="btn ' + (danger ? "danger" : "pri") + '" data-x="ok">' + esc(okLabel || "确定") + "</button></div>",
+        function () { res(false); });
+      m.addEventListener("click", function (e) {
+        var x = e.target.closest("[data-x]");
+        if (!x) return;
+        close(m);
+        res(x.dataset.x === "ok");
+      });
+    });
   }
 
   /* ------------------------------------------------------------ 数据形状（和电脑页面一致） */
@@ -121,9 +145,18 @@
     render();
   }
 
-  /* ------------------------------------------------------------ 预算计算（照搬电脑页） */
+  /* ------------------------------------------------------------ 预算计算（和电脑页同一套） */
   function catById(id) { return S.budget.categories.filter(function (c) { return c.id === id; })[0] || null; }
   function catName(id) { var c = catById(id); return c ? c.name : "未分类"; }
+  function catColor(id) {
+    if (!id) return "#9a9a96";
+    var i = S.budget.categories.findIndex(function (c) { return c.id === id; });
+    return i < 0 ? "#9a9a96" : CATCOL[i % CATCOL.length];
+  }
+  function dot(id, name, kind) {
+    var col = kind === "in" ? "var(--ok)" : catColor(id);
+    return '<span class="dot" style="background:' + col + '">' + esc(kind === "in" ? "收" : initial(name)) + "</span>";
+  }
   function monthTx(mo) { return S.budget.tx.filter(function (t) { return t.d && t.d.slice(0, 7) === mo; }); }
   function allocOf(mo) { var x = S.budget.months[mo]; return (x && x.alloc) || {}; }
   function spentBy(mo) {
@@ -151,146 +184,212 @@
     return carry;
   }
   function calc(mo) {
-    var a = allocOf(mo), sp = spentBy(mo), carry = carryTo(mo), rows = [], availSum = 0;
+    var a = allocOf(mo), sp = spentBy(mo), carry = carryTo(mo);
+    var rows = [], allocSum = 0, availSum = 0;
     S.budget.categories.forEach(function (c) {
       var al = a[c.id] || 0, ca = c.roll ? (carry[c.id] || 0) : 0, s = sp.cat[c.id] || 0;
       if (c.hidden && !al && !s && !ca) return;
+      allocSum += al;
       availSum += al + ca;
-      rows.push({ c: c, avail: al + ca, spent: s });
+      rows.push({ c: c, alloc: al, carry: ca, spent: s, left: al + ca - s });
     });
-    if (sp.cat[""]) rows.push({ c: { id: "", name: "未分类" }, avail: 0, spent: sp.cat[""] });
-    return { rows: rows, availSum: availSum, income: sp.income, out: sp.out };
+    if (sp.cat[""]) rows.push({ c: { id: "", name: "未分类" }, alloc: 0, carry: 0, spent: sp.cat[""], left: -sp.cat[""], loose: true });
+    return { rows: rows, allocSum: allocSum, availSum: availSum, income: sp.income, out: sp.out };
+  }
+  function elapsed(mo) {
+    var t = thisMonth();
+    if (mo < t) return 1;
+    if (mo > t) return 0;
+    return new Date().getDate() / daysIn(mo);
   }
   function recDone(r, mo) { return S.budget.tx.some(function (t) { return t.rec === r.id && (t.d || "").slice(0, 7) === mo; }); }
+  function learned() { return Bills.learn(S.budget.tx); }
+  function barClass(r, f) {
+    var avail = r.alloc + r.carry;
+    if (r.spent > avail && (avail > 0 || r.spent)) return avail > 0 ? "over" : "none";
+    if (avail > 0 && r.spent / avail > Math.max(f, .85)) return "warn";
+    return "";
+  }
+  function barColor(cls, id) {
+    return cls === "over" ? "var(--bad)" : cls === "warn" ? "var(--warn)" : cls === "none" ? "var(--faint)" : catColor(id);
+  }
+  function monSwitch(mo, act) {
+    return '<div class="mon"><button type="button" data-a="' + act + '-prev" aria-label="上个月">‹</button><b>' + monLabel(mo) + "</b>" +
+      '<button type="button" data-a="' + act + '-next" aria-label="下个月">›</button>' +
+      (mo !== thisMonth() ? '<button type="button" class="now" data-a="' + act + '-now">本月</button>' : "") + "</div>";
+  }
 
-  /* ------------------------------------------------------------ 渲染：记账 */
+  /* ------------------------------------------------------------ 记账页 */
   function renderMoney() {
-    var v = $("v-money"), mo = S.month, k = calc(mo);
-    var cats = S.budget.categories.filter(function (c) { return !c.hidden; });
-    if (S.cat && !catById(S.cat)) S.cat = "";
-    var h = '<div class="mon"><button type="button" data-a="prev">‹</button><b>' + (+mo.slice(0, 4)) + " 年 " + (+mo.slice(5, 7)) + " 月</b>" +
-      '<button type="button" data-a="next">›</button></div>';
-    h += '<div class="tiles"><div><small>支出</small><span class="amt">' + esc(fmt(k.out)) + "</span></div>" +
-      "<div><small>收入</small><span class=\"amt\">" + esc(fmt(k.income)) + "</span></div>" +
-      "<div><small>预算剩</small><span class=\"amt " + (k.availSum && k.availSum - k.out < 0 ? "neg" : "") + "\">" +
-      (k.availSum ? esc(fmt(k.availSum - (k.out - (spentBy(mo).cat[""] || 0)))) : "—") + "</span></div></div>";
+    var v = $("v-money"), mo = S.month, k = calc(mo), f = elapsed(mo), left = k.availSum - k.out;
+    var h = monSwitch(mo, "m");
 
-    /* 记一笔 */
-    h += '<h2>记一笔</h2><form class="card add" id="addf" autocomplete="off">' +
-      '<div class="row"><div class="kind" id="kind"><button type="button" data-k="out" class="' + (S.kind === "out" ? "on" : "") + '">支出</button>' +
-      '<button type="button" data-k="in" class="' + (S.kind === "in" ? "on" : "") + '">收入</button></div><span class="grow"></span>' +
-      '<input type="date" id="a-date" value="' + (mo === thisMonth() ? today() : mo + "-01") + '" style="width:auto;min-height:34px;padding:4px 8px;border-width:1.5px"></div>' +
-      '<input class="amtin" id="a-amt" inputmode="decimal" placeholder="0.00" enterkeyhint="done">' +
-      (S.kind === "out" ? '<div class="chips" id="a-cats">' + cats.map(function (c) {
-        return '<button type="button" class="chip' + (S.cat === c.id ? " on" : "") + '" data-c="' + esc(c.id) + '">' + esc(c.name) + "</button>";
-      }).join("") + "</div>" : "") +
-      '<div class="row" style="margin-top:10px"><input type="text" id="a-note" class="grow" placeholder="备注（商家、用途）" list="notes" maxlength="60">' +
-      '<button class="btn pri" type="submit">记</button></div></form>';
-    h += '<datalist id="notes">' + topNotes().map(function (n) { return '<option value="' + esc(n) + '">'; }).join("") + "</datalist>";
+    h += '<div class="card hero">';
+    if (k.availSum > 0) {
+      var used = k.out / k.availSum, cls = left < 0 ? "over" : used > Math.max(f, .85) ? "warn" : "";
+      h += '<div class="k">' + (mo === thisMonth() ? "这个月还能花" : mo < thisMonth() ? "这个月剩下" : "这个月可花") + "</div>" +
+        '<div class="big num ' + (left < 0 ? "neg" : "") + '">' + esc(fmt(left)) + "</div>";
+      if (mo === thisMonth()) {
+        var dleft = daysIn(mo) - new Date().getDate() + 1;
+        h += '<div class="sub">每天 <b class="num">' + esc(fmt(Math.max(0, Math.floor(left / dleft)))) + "</b> · 还剩 " + dleft + " 天</div>";
+      } else {
+        h += '<div class="sub">预算 ' + esc(fmt(k.availSum)) + "（含结转）</div>";
+      }
+      h += '<div class="pace"><i class="' + cls + '" style="width:' + Math.min(100, used * 100).toFixed(1) + '%"></i>' +
+        (f > 0 && f < 1 ? '<b style="left:' + (f * 100).toFixed(1) + '%"></b>' : "") + "</div>";
+      h += '<div class="hint">' + paceText(k, f) + "</div>";
+    } else {
+      h += '<div class="k">这个月花了</div><div class="big num">' + esc(fmt(k.out)) + "</div>" +
+        '<div class="sub">还没给分类分配预算。<button type="button" class="link" data-a="goplan" style="color:var(--fg);font-weight:600;padding:0">去分配 ›</button></div>';
+    }
+    h += '<div class="trio"><div><small>支出</small><span class="num">' + esc(fmt(k.out)) + "</span></div>" +
+      '<div><small>收入</small><span class="num">' + esc(fmt(k.income)) + "</span></div>" +
+      '<div><small>结余</small><span class="num ' + (k.income - k.out < 0 ? "neg" : "") + '">' + esc(fmt(k.income - k.out)) + "</span></div></div></div>";
 
-    /* 固定收支 */
     var pend = S.budget.recurring.filter(function (r) { return !recDone(r, mo); });
     if (pend.length) {
-      h += '<div class="banner warn"><span class="grow">本月还有 ' + pend.length + " 项固定收支没记：" +
-        esc(pend.slice(0, 3).map(function (r) { return r.name; }).join("、")) + (pend.length > 3 ? "…" : "") + "</span>" +
-        '<button class="btn sm" type="button" data-a="rec">记上</button></div>';
+      h += '<div class="banner"><span class="grow">还有 ' + pend.length + " 项固定收支没记：" +
+        esc(pend.slice(0, 2).map(function (r) { return r.name; }).join("、")) + (pend.length > 2 ? " 等" : "") + "</span>" +
+        '<button class="btn sm pri" type="button" data-a="rec">记上</button></div>';
     }
 
-    /* 分类进度 */
-    var rows = k.rows.filter(function (r) { return r.avail || r.spent; });
+    /* 分类：只列这个月有花费或有预算的，点一下筛流水 */
+    var rows = k.rows.filter(function (r) { return r.spent || r.alloc + r.carry; })
+      .sort(function (a, b) { return b.spent - a.spent; });
     if (rows.length) {
-      h += "<h2>分类</h2><div class=\"card bars\">";
+      h += '<div class="sec"><h2>分类</h2><button type="button" class="r" data-a="goplan">调预算</button></div><div class="list">';
       rows.forEach(function (r) {
-        var pct = r.avail > 0 ? Math.min(100, r.spent / r.avail * 100) : (r.spent ? 100 : 0);
-        h += '<div class="b"><div class="t"><span>' + esc(r.c.name) + '</span><span class="amt">' + esc(fmt(r.spent)) +
-          (r.avail ? ' <span class="dim">/ ' + esc(fmt(r.avail)) + "</span>" : "") + "</span></div>" +
-          '<div class="bar"><i style="width:' + pct.toFixed(1) + '%" class="' + (r.avail && r.spent > r.avail ? "over" : !r.avail ? "nobud" : "") + '"></i></div></div>';
+        var avail = r.alloc + r.carry, cls = barClass(r, f);
+        var pct = avail > 0 ? Math.min(100, r.spent / avail * 100) : (r.spent ? 100 : 0);
+        h += '<div class="cat tap' + (S.filter === r.c.id ? " sel" : "") + '" data-cat="' + esc(r.c.id) + '">' + dot(r.c.id, r.c.name) +
+          '<div class="mid"><div class="t"><span class="nm">' + esc(r.c.name) + '</span><span class="num">' + esc(fmt(r.spent)) +
+          (avail ? ' <span class="dim">/ ' + esc(fmt(avail)) + "</span>" : "") + "</span></div>" +
+          '<div class="bar"><i style="width:' + pct.toFixed(1) + "%;background:" + barColor(cls, r.c.id) + '"></i></div></div></div>';
       });
       h += "</div>";
     }
 
     /* 流水 */
-    var list = monthTx(mo).slice().sort(function (a, b) {
+    var list = monthTx(mo).filter(txMatches).sort(function (a, b) {
       return a.d !== b.d ? (a.d < b.d ? 1 : -1) : (b.ts || 0) - (a.ts || 0);
     });
-    h += "<h2>流水 <span>" + list.length + " 笔</span></h2><div class=\"list\">";
-    if (!list.length) h += '<div class="empty">这个月还没记账</div>';
+    h += '<div class="sec"><h2>流水 <span class="dim small" style="font-weight:400">' + list.length + " 笔</span></h2>" +
+      '<button type="button" class="r" data-a="search">' + (S.searching ? "收起" : "搜索") + "</button></div>";
+    if (S.searching) h += '<div class="search"><input type="search" id="q" placeholder="备注、分类、金额" value="' + esc(S.q) + '" enterkeyhint="search"></div>';
+    if (S.filter !== null) {
+      h += '<div class="filter"><span class="chip on">' + esc(S.filter ? catName(S.filter) : "未分类") +
+        ' <span data-a="unfilter" style="margin-left:4px">✕</span></span></div>';
+    }
+    if (!list.length) {
+      h += '<div class="list"><div class="empty">' + (S.q || S.filter !== null ? "没有对得上的流水" : "这个月还没记账，点右下角 ＋") + "</div></div>";
+    }
     var last = "", sums = {};
     list.forEach(function (t) { if (t.kind !== "in") sums[t.d] = (sums[t.d] || 0) + t.amt; });
-    list.forEach(function (t) {
+    list.forEach(function (t, i) {
       if (t.d !== last) {
+        if (last) h += "</div>";
         last = t.d;
-        h += '<div class="day"><span>' + esc(nice(t.d)) + "</span><span class=\"mono\">" + (sums[t.d] ? esc(fmt(-sums[t.d])) : "") + "</span></div>";
+        h += '<div class="day"><span>' + esc(nice(t.d)) + (t.d === today() ? " · 今天" : t.d === add(today(), -1) ? " · 昨天" : "") +
+          '</span><span class="num">' + (sums[t.d] ? "支出 " + esc(fmt(sums[t.d])) : "") + '</span></div><div class="list">';
       }
-      h += '<div class="it" data-id="' + esc(t.id) + '"><div class="nm">' + esc(t.note || (t.kind === "in" ? "收入" : catName(t.cat))) +
-        '<div class="sub">' + esc(t.kind === "in" ? "收入" : catName(t.cat)) + (t.src ? " · " + esc(t.src) : "") + "</div></div>" +
-        '<span class="amt ' + (t.kind === "in" ? "pos" : "") + '">' + esc(fmt(t.kind === "in" ? t.amt : -t.amt, true)) + "</span></div>";
+      var name = t.kind === "in" ? "收入" : catName(t.cat);
+      h += '<div class="it" data-id="' + esc(t.id) + '"><div class="in">' + dot(t.cat, name, t.kind) +
+        '<div class="nm"><div>' + esc(t.note || name) + "</div>" +
+        '<div class="sub">' + esc(name) + (t.src ? " · " + esc(t.src) : "") + (t.rec ? " · 固定" : "") + "</div></div>" +
+        '<span class="num ' + (t.kind === "in" ? "pos" : "") + '">' + esc(fmt(t.kind === "in" ? t.amt : -t.amt, true)) + "</span></div>" +
+        '<button type="button" class="del" data-del="' + esc(t.id) + '">删除</button></div>';
+      if (i === list.length - 1) h += "</div>";
     });
-    h += "</div>";
     v.innerHTML = h;
   }
-  function topNotes() {
-    var cnt = {};
-    S.budget.tx.slice(-600).forEach(function (t) { if (t.note) cnt[t.note] = (cnt[t.note] || 0) + 1; });
-    return Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; }).slice(0, 30);
+  function paceText(k, f) {
+    if (f === 0) return "这个月还没到，可以先把分配排好。";
+    var used = k.out / k.availSum, d = Math.round((used - f) * 100);
+    if (f >= 1) return "已结束：预算用掉 " + Math.round(used * 100) + "%" + (used > 1 ? '，<span class="bad">超支 ' + esc(fmt(k.out - k.availSum)) + "</span>" : "");
+    return "时间过了 " + Math.round(f * 100) + "%，钱花了 " + Math.round(used * 100) + "%，" +
+      (d > 3 ? '<span class="bad">快了 ' + d + " 个点</span>" : d < -3 ? '<span class="ok">慢了 ' + (-d) + " 个点</span>" : "刚好跟上");
   }
-  function learned() { return Bills.learn(S.budget.tx); }
+  function txMatches(t) {
+    if (S.filter !== null && (t.kind === "in" || (t.cat || "") !== S.filter)) return false;
+    if (!S.q) return true;
+    var q = S.q.toLowerCase();
+    return (t.note || "").toLowerCase().indexOf(q) >= 0 ||
+      (t.kind === "in" ? "收入" : catName(t.cat)).toLowerCase().indexOf(q) >= 0 ||
+      plain(t.amt).indexOf(q) >= 0 || (t.src || "").toLowerCase().indexOf(q) >= 0;
+  }
+
+  /* 左滑删除 */
+  function bindSwipe(root) {
+    var sx = 0, sy = 0, el = null, dx = 0, moving = false;
+    root.addEventListener("touchstart", function (e) {
+      var it = e.target.closest(".it");
+      [].forEach.call(root.querySelectorAll(".it.open"), function (o) { if (o !== it) o.classList.remove("open"); });
+      if (!it || e.target.closest(".del")) { el = null; return; }
+      el = it; sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; moving = false;
+    }, { passive: true });
+    root.addEventListener("touchmove", function (e) {
+      if (!el) return;
+      var x = e.touches[0].clientX - sx, y = e.touches[0].clientY - sy;
+      if (!moving && Math.abs(y) > Math.abs(x)) { el = null; return; }
+      if (Math.abs(x) > 8) moving = true;
+      if (!moving) return;
+      dx = Math.max(-100, Math.min(0, x + (el.classList.contains("open") ? -84 : 0)));
+      el.firstChild.style.transition = "none";
+      el.firstChild.style.transform = "translateX(" + dx + "px)";
+    }, { passive: true });
+    root.addEventListener("touchend", function () {
+      if (!el || !moving) { el = null; return; }
+      el.firstChild.style.transition = "";
+      el.firstChild.style.transform = "";
+      el.classList.toggle("open", dx < -40);
+      el.dataset.swiped = "1";
+      setTimeout(function (x) { delete x.dataset.swiped; }, 350, el);
+      el = null;
+    });
+  }
 
   function bindMoney() {
     var v = $("v-money");
+    bindSwipe(v);
     v.addEventListener("click", function (e) {
-      var a = e.target.closest("[data-a]"), k = e.target.closest("[data-k]"), c = e.target.closest("[data-c]"), it = e.target.closest(".it");
+      var a = e.target.closest("[data-a]"), c = e.target.closest("[data-cat]"), del = e.target.closest("[data-del]"), it = e.target.closest(".it");
       if (a) {
-        if (a.dataset.a === "prev") { S.month = shiftMonth(S.month, -1); render(); }
-        if (a.dataset.a === "next") { S.month = shiftMonth(S.month, 1); render(); }
-        if (a.dataset.a === "rec") applyRec();
+        var act = a.dataset.a;
+        if (act === "m-prev") { S.month = shiftMonth(S.month, -1); S.filter = null; render(); }
+        if (act === "m-next") { S.month = shiftMonth(S.month, 1); S.filter = null; render(); }
+        if (act === "m-now") { S.month = thisMonth(); S.filter = null; render(); }
+        if (act === "rec") applyRec();
+        if (act === "goplan") go("plan");
+        if (act === "unfilter") { S.filter = null; render(); }
+        if (act === "search") {
+          S.searching = !S.searching;
+          if (!S.searching) S.q = "";
+          render();
+          if (S.searching && $("q")) $("q").focus();
+        }
         return;
       }
-      if (k) { keepForm(function () { S.kind = k.dataset.k; }); return; }
-      if (c) { keepForm(function () { S.cat = S.cat === c.dataset.c ? "" : c.dataset.c; }); return; }
+      if (c) { S.filter = S.filter === c.dataset.cat ? null : c.dataset.cat; render(); return; }
+      if (del) { removeTx(del.dataset.del); return; }
       if (it) {
+        if (it.dataset.swiped) return;
+        if (it.classList.contains("open")) { it.classList.remove("open"); return; }
         var t = S.budget.tx.filter(function (x) { return x.id === it.dataset.id; })[0];
         if (t) txSheet(t);
       }
     });
-    v.addEventListener("submit", function (e) {
-      if (e.target.id !== "addf") return;
-      e.preventDefault();
-      quickAdd();
+    v.addEventListener("input", function (e) {
+      if (e.target.id !== "q") return;
+      S.q = e.target.value.trim();
+      clearTimeout(bindMoney.t);
+      bindMoney.t = setTimeout(function () {
+        var pos = e.target.selectionStart;
+        S.deferred = false;
+        renderMoney();
+        var q = $("q");
+        if (q) { q.focus(); try { q.setSelectionRange(pos, pos); } catch (x) {} }
+      }, 250);
     });
-    v.addEventListener("change", function (e) {
-      if (e.target.id === "a-note" && S.kind === "out" && !S.cat) {
-        var g = Bills.guessCat(e.target.value, S.budget.categories, learned());
-        /* 只改按钮高亮，不重画：这个 change 常常是手指正按在「记」上时触发的，重画会吞掉那次点击 */
-        if (g) {
-          S.cat = g;
-          [].forEach.call(document.querySelectorAll("#a-cats .chip"), function (b) { b.classList.toggle("on", b.dataset.c === g); });
-        }
-      }
-    });
-  }
-  /* 切换收支 / 分类时重画，但别把正在填的金额和备注冲掉 */
-  function keepForm(fn) {
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    S.deferred = false;
-    var amt = $("a-amt") ? $("a-amt").value : "", note = $("a-note") ? $("a-note").value : "", d = $("a-date") ? $("a-date").value : "";
-    fn();
-    render();
-    if ($("a-amt")) { $("a-amt").value = amt; $("a-note").value = note; if (d) $("a-date").value = d; }
-  }
-  function quickAdd() {
-    var amt = parseAmt($("a-amt").value);
-    if (amt === null) { $("a-amt").focus(); toast("先填金额", "bad"); return; }
-    if (isNaN(amt) || amt <= 0) { toast("金额看不懂，写数字或者 12+8.5", "bad"); return; }
-    var d = $("a-date").value;
-    if (!validDate(d)) { toast("日期不对", "bad"); return; }
-    var note = $("a-note").value.trim();
-    var cat = S.kind === "in" ? "" : (S.cat || Bills.guessCat(note, S.budget.categories, learned()));
-    var t = { id: uid(), d: d, amt: amt, kind: S.kind, cat: cat, note: note, ts: Date.now() };
-    S.budget.tx.push(t);
-    S.cat = "";
-    changed("budget");
-    toast("记了 " + fmt(amt) + (cat ? " · " + catName(cat) : ""), "", { label: "撤销", run: function () { removeTx(t.id, true); } }, 5000);
   }
   function removeTx(id, silent) {
     var i = S.budget.tx.findIndex(function (t) { return t.id === id; });
@@ -310,69 +409,464 @@
     if (n) { changed("budget"); toast("记入了 " + n + " 项固定收支"); }
   }
 
+  /* ------------------------------------------------------------ 预算页：电脑上的全部控制 */
+  function renderPlan() {
+    var v = $("v-plan"), mo = S.month, k = calc(mo), f = elapsed(mo);
+    var unalloc = k.income - k.allocSum, left = k.availSum - k.out;
+    var h = monSwitch(mo, "p");
+    function tile(name, val, sub, cls) {
+      return '<div class="tile ' + (cls || "") + '"><small>' + esc(name) + '</small><div class="num">' + esc(val) + '</div><div class="s">' + (sub || "&nbsp;") + "</div></div>";
+    }
+    h += '<div class="tiles">' +
+      tile("收入", fmt(k.income), monthTx(mo).filter(function (t) { return t.kind === "in"; }).length + " 笔") +
+      tile("待分配", fmt(unalloc), unalloc < 0 ? "分出去的比挣的多" : unalloc ? "还没安排的钱" : (k.income ? "每一块都有去处" : "先记收入"),
+           unalloc < 0 ? "bad" : unalloc === 0 && k.income ? "ok" : "") +
+      tile("已分配", fmt(k.allocSum), k.income ? Math.round(k.allocSum / k.income * 100) + "% 的收入" : "") +
+      tile("预算剩余", fmt(left), "含结转", left < 0 ? "bad" : "") +
+      tile("已花", fmt(k.out), k.availSum ? Math.round(k.out / k.availSum * 100) + "% 的预算" : "") +
+      (mo === thisMonth()
+        ? tile("每天还能花", fmt(Math.max(0, Math.floor(left / (daysIn(mo) - new Date().getDate() + 1)))), "剩 " + (daysIn(mo) - new Date().getDate() + 1) + " 天", left < 0 ? "bad" : "")
+        : tile("本月结余", fmt(k.income - k.out), "收入 − 支出", k.income - k.out < 0 ? "bad" : "ok")) +
+      "</div>";
+    if (k.availSum) h += '<div class="card" style="margin-top:10px"><div class="hint">' + paceText(k, f) + "</div></div>";
+    h += '<div class="acts2"><button class="btn" type="button" data-a="copy">照上月填</button>' +
+      '<button class="btn" type="button" data-a="fill">待分配按上月摊</button></div>';
+
+    h += '<div class="sec"><h2>分配</h2><button type="button" class="r" data-a="addcat">＋ 分类</button></div><div class="list">';
+    if (!k.rows.length) h += '<div class="empty">还没有分类</div>';
+    k.rows.forEach(function (r) {
+      var avail = r.alloc + r.carry, cls = barClass(r, f);
+      var pct = avail > 0 ? Math.min(100, r.spent / avail * 100) : (r.spent ? 100 : 0);
+      var meta = [];
+      meta.push(r.loose ? "没有分类的支出" : "分配 " + fmt(r.alloc));
+      if (r.carry) meta.push("结转 " + fmt(r.carry, true));
+      h += '<div class="cat tap" data-pcat="' + esc(r.c.id) + '">' + dot(r.c.id, r.c.name) +
+        '<div class="mid"><div class="t"><span class="nm">' + esc(r.c.name) + (r.c.roll ? '<span class="tag">滚</span>' : "") +
+        (r.c.hidden ? '<span class="tag">隐藏</span>' : "") + '</span><span class="num ' + (r.left < 0 ? "neg" : "") + '">剩 ' + esc(fmt(r.left)) + "</span></div>" +
+        '<div class="bar"><i style="width:' + pct.toFixed(1) + "%;background:" + barColor(cls, r.c.id) + '"></i>' +
+        (f > 0 && f < 1 && avail > 0 ? '<b style="left:' + (f * 100).toFixed(1) + '%"></b>' : "") + "</div>" +
+        '<div class="meta"><span>' + esc(meta.join(" · ")) + '</span><span class="num">花 ' + esc(fmt(r.spent)) + "</span></div></div></div>";
+    });
+    var hiddenN = S.budget.categories.filter(function (c) { return c.hidden && !k.rows.some(function (r) { return r.c === c; }); }).length;
+    h += "</div>";
+    if (hiddenN) h += '<p class="dim small" style="margin:8px 6px">还有 ' + hiddenN + ' 个隐藏的分类。<button type="button" class="link" data-a="hidden" style="color:var(--fg)">看看</button></p>';
+
+    var pend = S.budget.recurring.filter(function (r) { return !recDone(r, mo); }).length;
+    h += '<div class="sec"><h2>固定收支 <span class="dim small" style="font-weight:400">每月自动提醒</span></h2>' +
+      '<button type="button" class="r" data-a="addrec">＋ 添加</button></div><div class="list">';
+    if (!S.budget.recurring.length) h += '<div class="empty">房租、工资、订阅……加上以后每月一键记</div>';
+    S.budget.recurring.slice().sort(function (a, b) { return a.day - b.day; }).forEach(function (r) {
+      var done = recDone(r, mo);
+      h += '<div class="cell tap' + (done ? " done" : "") + '" data-rec="' + esc(r.id) + '">' + dot(r.cat, r.kind === "in" ? "收入" : catName(r.cat), r.kind) +
+        '<div class="grow"><div>' + esc(r.name) + '</div><div class="sub">每月 ' + r.day + " 号 · " + esc(r.kind === "in" ? "收入" : catName(r.cat)) +
+        (done ? " · 本月已记" : "") + "</div></div>" +
+        '<span class="num ' + (r.kind === "in" ? "pos" : "") + '">' + (done ? "✓ " : "") + esc(fmt(r.kind === "in" ? r.amt : -r.amt, true)) + "</span></div>";
+    });
+    h += "</div>";
+    if (pend) h += '<button class="btn wide" type="button" data-a="rec" style="margin-top:10px;background:var(--card)">把本月没记的 ' + pend + " 项记上</button>";
+
+    h += '<div class="sec"><h2>近六个月</h2></div><div class="card trend">' + trendSvg(mo) +
+      '<div class="legend"><span><i style="background:var(--acc)"></i>支出</span><span><i style="background:var(--ok);opacity:.35"></i>收入</span></div></div>';
+    v.innerHTML = h;
+  }
+  function trendSvg(mo) {
+    var months = [], i;
+    for (i = 5; i >= 0; i--) months.push(shiftMonth(mo, -i));
+    var vals = months.map(function (m) { var s = spentBy(m); return { mo: m, inc: s.income, out: s.out }; });
+    var max = 1;
+    vals.forEach(function (x) { max = Math.max(max, x.inc, x.out); });
+    var W = 600, H = 230, top = 26, bot = 32, ch = H - top - bot, bw = W / 6;
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="近六个月收支">';
+    vals.forEach(function (x, j) {
+      var X = j * bw, oh = x.out / max * ch, ih = x.inc / max * ch;
+      if (x.inc) svg += '<rect class="rin" rx="6" x="' + (X + bw * .16) + '" y="' + (top + ch - ih) + '" width="' + (bw * .68) + '" height="' + ih + '"></rect>';
+      svg += '<rect class="rout" rx="6" x="' + (X + bw * .3) + '" y="' + (top + ch - oh) + '" width="' + (bw * .4) + '" height="' + Math.max(oh, x.out ? 2 : 0) + '"></rect>';
+      if (x.out) svg += '<text class="v" x="' + (X + bw / 2) + '" y="' + Math.max(18, top + ch - Math.max(oh, ih) - 7) + '" text-anchor="middle">' + esc(short(x.out)) + "</text>";
+      svg += '<text x="' + (X + bw / 2) + '" y="' + (H - 8) + '" text-anchor="middle"' + (x.mo === mo ? ' style="fill:var(--fg);font-weight:700"' : "") + ">" + (+x.mo.slice(5)) + "月</text>";
+    });
+    return svg + '<line class="ax" x1="0" x2="' + W + '" y1="' + (top + ch) + '" y2="' + (top + ch) + '"></line></svg>';
+  }
+  function short(c) { var y = c / 100; return y >= 10000 ? (y / 10000).toFixed(1).replace(/\.0$/, "") + "万" : String(Math.round(y)); }
+
+  function bindPlan() {
+    $("v-plan").addEventListener("click", function (e) {
+      var a = e.target.closest("[data-a]"), pc = e.target.closest("[data-pcat]"), rc = e.target.closest("[data-rec]");
+      if (a) {
+        var act = a.dataset.a;
+        if (act === "p-prev") { S.month = shiftMonth(S.month, -1); render(); }
+        if (act === "p-next") { S.month = shiftMonth(S.month, 1); render(); }
+        if (act === "p-now") { S.month = thisMonth(); render(); }
+        if (act === "copy") copyLast();
+        if (act === "fill") fillByLast();
+        if (act === "rec") applyRec();
+        if (act === "addcat") addCat();
+        if (act === "addrec") recSheet(null);
+        if (act === "hidden") hiddenSheet();
+        return;
+      }
+      if (pc) {
+        if (!pc.dataset.pcat) { S.filter = ""; go("money"); return; }
+        var c = catById(pc.dataset.pcat);
+        if (c) catSheet(c);
+        return;
+      }
+      if (rc) {
+        var r = S.budget.recurring.filter(function (x) { return x.id === rc.dataset.rec; })[0];
+        if (r) recSheet(r);
+      }
+    });
+  }
+  function setAlloc(cat, v) {
+    var mo = S.budget.months[S.month] = S.budget.months[S.month] || {};
+    mo.alloc = mo.alloc || {};
+    if (v) mo.alloc[cat] = v; else delete mo.alloc[cat];
+  }
+  function copyLast() {
+    var prev = allocOf(shiftMonth(S.month, -1));
+    if (!Object.keys(prev).length) { toast("上个月没有分配可以抄", "bad"); return; }
+    var doit = function () {
+      var mo = S.budget.months[S.month] = S.budget.months[S.month] || {};
+      mo.alloc = JSON.parse(JSON.stringify(prev));
+      changed("budget");
+      toast("照上月填好了");
+    };
+    if (Object.keys(allocOf(S.month)).length) ask("这个月已经填过分配，用上个月的覆盖掉？", "覆盖").then(function (y) { if (y) doit(); });
+    else doit();
+  }
+  /* 待分配的钱按上个月各分类实际花费的比例摊，取整到元；零头给花得最多的那类（和电脑页一样） */
+  function fillByLast() {
+    var k = calc(S.month), left = k.income - k.allocSum;
+    if (left <= 0) { toast(k.income ? "没有待分配的钱" : "先记这个月的收入", "bad"); return; }
+    var sp = spentBy(shiftMonth(S.month, -1)).cat, ids = [];
+    S.budget.categories.forEach(function (c) { if (!c.hidden && sp[c.id] > 0) ids.push(c.id); });
+    if (!ids.length) { toast("上个月没有分类花费可以参照", "bad"); return; }
+    var total = ids.reduce(function (s, id) { return s + sp[id]; }, 0), given = 0;
+    var mo = S.budget.months[S.month] = S.budget.months[S.month] || {};
+    mo.alloc = mo.alloc || {};
+    ids.sort(function (a, b) { return sp[b] - sp[a]; });
+    ids.forEach(function (id) {
+      var part = Math.floor(left * sp[id] / total / 100) * 100;
+      mo.alloc[id] = (mo.alloc[id] || 0) + part;
+      given += part;
+    });
+    mo.alloc[ids[0]] += left - given;
+    changed("budget");
+    toast("把 " + fmt(left) + " 按上月比例摊开了");
+  }
+  function addCat() {
+    var m = sheet("<h3>新分类" + closeBtn() + '</h3><input type="text" id="nc" maxlength="20" placeholder="比如 咖啡、健身">' +
+      '<label class="row" style="margin-top:12px;justify-content:space-between"><span>结余滚入下月<div class="dim small">没花完的带到下个月，超支也扣到下个月</div></span>' +
+      '<span class="sw"><input type="checkbox" id="nr"><span></span></span></label>' +
+      '<div class="acts"><button type="button" class="btn pri" data-x="ok">加上</button></div>');
+    setTimeout(function () { m.querySelector("#nc").focus(); }, 60);
+    m.addEventListener("click", function (e) {
+      var x = e.target.closest("[data-x]");
+      if (!x) return;
+      if (x.dataset.x === "close") { close(m); return; }
+      var v = m.querySelector("#nc").value.trim();
+      if (!v) { toast("写个名字", "bad"); return; }
+      if (S.budget.categories.some(function (c) { return c.name === v; })) { toast("已经有这个分类了", "bad"); return; }
+      S.budget.categories.push({ id: "c" + uid(), name: v.slice(0, 20), roll: m.querySelector("#nr").checked, hidden: false });
+      close(m);
+      changed("budget");
+      toast("加上了「" + v + "」");
+    });
+  }
+  function catSheet(c) {
+    var k = calc(S.month), r = k.rows.filter(function (x) { return x.c === c; })[0] || { alloc: 0, carry: 0, spent: 0, left: 0 };
+    var list = S.budget.categories, i = list.indexOf(c), prevAlloc = allocOf(shiftMonth(S.month, -1))[c.id] || 0;
+    var used = S.budget.tx.filter(function (t) { return t.cat === c.id; }).length;
+    var m = sheet("<h3>" + esc(c.name) + closeBtn() + "</h3>" +
+      '<div class="card"><div class="row" style="justify-content:space-between"><span class="dim small">' + monLabel(S.month) + " 分配</span>" +
+      '<span class="dim small">本月花了 ' + esc(fmt(r.spent)) + (r.carry ? " · 结转 " + esc(fmt(r.carry, true)) : "") + "</span></div>" +
+      '<input type="text" id="ca" inputmode="decimal" class="num" style="font-size:26px;font-weight:700;margin-top:6px;background:var(--press)" placeholder="0" value="' + (r.alloc ? plain(r.alloc) : "") + '">' +
+      '<div class="chips" style="margin-top:8px">' +
+      (prevAlloc ? '<button type="button" class="chip" data-set="' + prevAlloc + '">上月 ' + esc(fmt(prevAlloc)) + "</button>" : "") +
+      (r.spent ? '<button type="button" class="chip" data-set="' + r.spent + '">刚好够已花的 ' + esc(fmt(r.spent)) + "</button>" : "") +
+      '<button type="button" class="chip" data-set="0">清零</button></div>' +
+      '<div class="dim small" style="margin-top:6px">可以写算式，比如 1500+300</div></div>' +
+      '<div class="card"><label class="f" style="margin-top:0">名字</label><input type="text" id="cn" maxlength="20" value="' + esc(c.name) + '">' +
+      '<label class="row" style="margin-top:14px;justify-content:space-between"><span>结余滚入下月<div class="dim small">没花完的带到下个月，超支也扣过去</div></span>' +
+      '<span class="sw"><input type="checkbox" id="cr"' + (c.roll ? " checked" : "") + "><span></span></span></label>" +
+      '<div class="row" style="margin-top:14px"><span class="grow dim small">排序</span>' +
+      '<button type="button" class="btn sm" data-x="up"' + (i > 0 ? "" : " disabled") + ">上移</button>" +
+      '<button type="button" class="btn sm" data-x="down"' + (i < list.length - 1 ? "" : " disabled") + ">下移</button></div></div>" +
+      '<div class="acts"><button type="button" class="btn danger" data-x="del">' + (c.hidden ? "重新显示" : used ? "隐藏" : "删除") + "</button>" +
+      '<button type="button" class="btn pri" data-x="save">保存</button></div>');
+    var q = function (id) { return m.querySelector("#" + id); };
+    m.addEventListener("click", function (e) {
+      var st = e.target.closest("[data-set]"), x = e.target.closest("[data-x]");
+      if (st) { q("ca").value = +st.dataset.set ? plain(+st.dataset.set) : ""; return; }
+      if (!x) return;
+      var act = x.dataset.x;
+      if (act === "close") { close(m); return; }
+      if (act === "up" || act === "down") {
+        var j = list.indexOf(c), to = act === "up" ? j - 1 : j + 1;
+        if (to < 0 || to >= list.length) return;
+        list.splice(to, 0, list.splice(j, 1)[0]);
+        changed("budget");
+        x.parentNode.querySelector('[data-x="up"]').disabled = to === 0;
+        x.parentNode.querySelector('[data-x="down"]').disabled = to === list.length - 1;
+        toast(act === "up" ? "上移了" : "下移了", "", null, 1000);
+        return;
+      }
+      if (act === "del") {
+        if (c.hidden) { c.hidden = false; close(m); changed("budget"); toast("「" + c.name + "」重新显示了"); return; }
+        if (used) {
+          ask("「" + c.name + "」下面有 " + used + " 笔流水，删了账就对不上。改成隐藏？旧账照常统计，记账时不再出现。", "隐藏").then(function (y) {
+            if (!y) return;
+            c.hidden = true; close(m); changed("budget");
+          });
+        } else {
+          ask("删掉分类「" + c.name + "」？各月给它的分配额也一起去掉。", "删除", true).then(function (y) {
+            if (!y) return;
+            list.splice(list.indexOf(c), 1);
+            Object.keys(S.budget.months).forEach(function (kk) { var a = S.budget.months[kk].alloc; if (a) delete a[c.id]; });
+            close(m); changed("budget");
+          });
+        }
+        return;
+      }
+      var v = parseAmt(q("ca").value);
+      if (v === null) v = 0;
+      if (isNaN(v) || v < 0) { toast("分配额看不懂", "bad"); return; }
+      var nm = q("cn").value.trim();
+      if (!nm) { toast("名字不能空", "bad"); return; }
+      if (nm !== c.name && list.some(function (o) { return o !== c && o.name === nm; })) { toast("已经有这个分类了", "bad"); return; }
+      c.name = nm.slice(0, 20);
+      c.roll = q("cr").checked;
+      setAlloc(c.id, v);
+      close(m);
+      changed("budget");
+      toast(c.name + "：" + monLabel(S.month).replace(/^\d+ 年 /, "") + "分配 " + fmt(v));
+    });
+  }
+  function hiddenSheet() {
+    var hid = S.budget.categories.filter(function (c) { return c.hidden; });
+    var m = sheet("<h3>隐藏的分类" + closeBtn() + '</h3><div class="list">' + hid.map(function (c) {
+      return '<div class="cell"><div class="grow">' + esc(c.name) + '</div><button type="button" class="btn sm" data-show="' + esc(c.id) + '">显示</button></div>';
+    }).join("") + "</div>");
+    m.addEventListener("click", function (e) {
+      var s = e.target.closest("[data-show]"), x = e.target.closest("[data-x]");
+      if (x) { close(m); return; }
+      if (!s) return;
+      var c = catById(s.dataset.show);
+      if (c) { c.hidden = false; changed("budget"); s.closest(".cell").remove(); }
+      if (!m.querySelector(".cell")) close(m);
+    });
+  }
+  function recSheet(r) {
+    var isNew = !r, e = r || { name: "", amt: 0, day: 1, kind: "out", cat: "" }, kind = e.kind, cat = e.cat || "";
+    var cats = S.budget.categories.filter(function (c) { return !c.hidden || c.id === cat; });
+    var m = sheet("<h3>" + (isNew ? "新的固定收支" : "固定收支") + closeBtn() + "</h3>" +
+      '<div class="seg" id="r-kind"><button type="button" data-k="out" class="' + (kind === "out" ? "on" : "") + '">支出</button>' +
+      '<button type="button" data-k="in" class="' + (kind === "in" ? "on" : "") + '">收入</button></div>' +
+      '<label class="f">名称</label><input type="text" id="r-name" maxlength="30" placeholder="房租、工资、视频会员……" value="' + esc(e.name) + '">' +
+      '<div class="two"><div><label class="f">金额</label><input type="text" id="r-amt" inputmode="decimal" class="num" value="' + (e.amt ? plain(e.amt) : "") + '"></div>' +
+      '<div><label class="f">每月几号</label><select id="r-day">' + (function () {
+        var o = ""; for (var d = 1; d <= 31; d++) o += '<option value="' + d + '"' + (d === e.day ? " selected" : "") + ">" + d + " 号" + (d > 28 ? "（月小取月底）" : "") + "</option>"; return o;
+      })() + "</select></div></div>" +
+      '<div id="r-catw"' + (kind === "in" ? " hidden" : "") + '><label class="f">分类</label><div class="chips" id="r-cats">' +
+      cats.map(function (c) { return '<button type="button" class="chip' + (cat === c.id ? " on" : "") + '" data-c="' + esc(c.id) + '"><i style="background:' + catColor(c.id) + '"></i>' + esc(c.name) + "</button>"; }).join("") +
+      "</div></div>" +
+      (isNew ? "" : '<p class="dim small" style="margin:12px 2px 0">改动只影响以后；已经记进流水的不动。</p>') +
+      '<div class="acts">' + (isNew ? "" : '<button type="button" class="btn danger" data-x="del">删除</button>') +
+      '<button type="button" class="btn pri" data-x="save">' + (isNew ? "加上" : "保存") + "</button></div>");
+    var q = function (id) { return m.querySelector("#" + id); };
+    if (isNew) setTimeout(function () { q("r-name").focus(); }, 60);
+    m.addEventListener("click", function (ev) {
+      var k = ev.target.closest("[data-k]"), c = ev.target.closest("[data-c]"), x = ev.target.closest("[data-x]");
+      if (k) { kind = k.dataset.k; [].forEach.call(q("r-kind").children, function (b) { b.classList.toggle("on", b === k); }); q("r-catw").hidden = kind === "in"; return; }
+      if (c) { cat = cat === c.dataset.c ? "" : c.dataset.c; [].forEach.call(q("r-cats").children, function (b) { b.classList.toggle("on", b.dataset.c === cat); }); return; }
+      if (!x) return;
+      if (x.dataset.x === "close") { close(m); return; }
+      if (x.dataset.x === "del") {
+        ask("删掉「" + r.name + "」？已经记进流水的不动。", "删除", true).then(function (y) {
+          if (!y) return;
+          S.budget.recurring.splice(S.budget.recurring.indexOf(r), 1);
+          close(m); changed("budget");
+        });
+        return;
+      }
+      var name = q("r-name").value.trim(), amt = parseAmt(q("r-amt").value);
+      if (!name) { toast("写个名称", "bad"); return; }
+      if (!amt || isNaN(amt) || amt <= 0) { toast("金额看不懂", "bad"); return; }
+      var row = r || { id: "r" + uid() };
+      row.name = name.slice(0, 30); row.amt = amt; row.day = +q("r-day").value; row.kind = kind; row.cat = kind === "in" ? "" : cat;
+      if (isNew) S.budget.recurring.push(row);
+      close(m);
+      changed("budget");
+      toast(isNew ? "加上了「" + row.name + "」" : "改好了");
+    });
+  }
+
   /* ------------------------------------------------------------ 弹层 */
-  function sheet(html) {
+  function closeBtn() { return '<button type="button" class="link" data-x="close">关闭</button>'; }
+  function sheet(html, onDismiss) {
     var m = document.createElement("div");
-    m.className = "sheet-mask";
-    m.innerHTML = '<div class="sheet" role="dialog" aria-modal="true">' + html + "</div>";
+    m.className = "mask";
+    m.innerHTML = '<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>' + html + "</div>";
     document.body.appendChild(m);
-    m.addEventListener("click", function (e) { if (e.target === m) m.remove(); });
+    document.body.style.overflow = "hidden";
+    m.addEventListener("click", function (e) { if (e.target === m) { close(m); if (onDismiss) onDismiss(); } });
+    /* 往下拖把手关掉 */
+    var sy = null, sh = m.firstChild;
+    sh.addEventListener("touchstart", function (e) { sy = sh.scrollTop <= 0 && e.target.closest(".grab,h3") ? e.touches[0].clientY : null; }, { passive: true });
+    sh.addEventListener("touchmove", function (e) { if (sy !== null) { var d = Math.max(0, e.touches[0].clientY - sy); sh.style.transform = "translateY(" + d + "px)"; } }, { passive: true });
+    sh.addEventListener("touchend", function (e) {
+      if (sy === null) return;
+      var d = e.changedTouches[0].clientY - sy;
+      sy = null;
+      if (d > 90) { close(m); if (onDismiss) onDismiss(); } else sh.style.transform = "";
+    });
     return m;
   }
-  function catChips(sel, cats, attr) {
-    return cats.map(function (c) {
-      return '<button type="button" class="chip' + (sel === c.id ? " on" : "") + '" ' + attr + '="' + esc(c.id) + '"' +
-        (c.color ? ' style="border-color:' + esc(c.color) + '"' : "") + ">" + esc(c.name) + "</button>";
-    }).join("");
+  function close(m) {
+    if (m && m.parentNode) m.remove();
+    if (!document.querySelector(".mask")) document.body.style.overflow = "";
   }
-  /* 改一笔 / 截图进来的一笔，共用一个表单。t 没有 id 就是新的。 */
+
+  /* 记一笔 / 改一笔 / 截图进来的一笔：同一个面板，自带数字键盘，不用唤起系统键盘。t 没有 id 就是新的。 */
+  function catsByUse() {
+    var cnt = {};
+    S.budget.tx.slice(-400).forEach(function (t) { if (t.kind !== "in" && t.cat) cnt[t.cat] = (cnt[t.cat] || 0) + 1; });
+    var cats = S.budget.categories.filter(function (c) { return !c.hidden; });
+    var order = cats.map(function (c, i) { return { c: c, n: cnt[c.id] || 0, i: i }; });
+    order.sort(function (a, b) { return b.n - a.n || a.i - b.i; });
+    return order.map(function (x) { return x.c; });
+  }
+  function notesFor(cat, kind) {
+    var cnt = {};
+    S.budget.tx.slice(-600).forEach(function (t) {
+      if (!t.note || t.kind !== kind) return;
+      if (kind === "out" && cat && t.cat !== cat) return;
+      cnt[t.note] = (cnt[t.note] || 0) + 1;
+    });
+    return Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; }).slice(0, 8);
+  }
   function txSheet(t, opts) {
+    t = t || {};
     opts = opts || {};
-    var isNew = !t.id, kind = t.kind || "out", cat = t.cat || "";
-    var cats = S.budget.categories.filter(function (c) { return !c.hidden || c.id === cat; });
+    var isNew = !t.id, kind = t.kind || "out", cat = t.cat || "", d = t.d || (S.month === thisMonth() ? today() : S.month + "-01");
+    var expr = t.amt ? plain(t.amt) : "", src = t.src || "", catTouched = !!t.cat;
+    var cats = catsByUse();
+    if (cat && !cats.some(function (c) { return c.id === cat; }) && catById(cat)) cats.push(catById(cat));
     var m = sheet(
-      "<h3>" + (opts.title || (isNew ? "记一笔" : "这一笔")) + '<button type="button" class="link" data-x="close">关闭</button></h3>' +
-      (opts.hint ? '<p class="dim small" style="margin:0 0 6px">' + esc(opts.hint) + "</p>" : "") +
-      '<div class="row"><div class="kind" id="s-kind"><button type="button" data-k="out" class="' + (kind === "out" ? "on" : "") + '">支出</button>' +
-      '<button type="button" data-k="in" class="' + (kind === "in" ? "on" : "") + '">收入</button></div></div>' +
-      '<label class="f">金额</label><input type="text" id="s-amt" inputmode="decimal" value="' + (t.amt ? plain(t.amt) : "") + '" class="mono">' +
-      '<div id="s-catw"' + (kind === "in" ? " hidden" : "") + '><label class="f">分类</label><div class="chips" id="s-cats" style="margin-top:0">' + catChips(cat, cats, "data-c") + "</div></div>" +
-      '<label class="f">备注</label><input type="text" id="s-note" maxlength="60" value="' + esc(t.note || "") + '">' +
-      '<div class="two"><div><label class="f">日期</label><input type="date" id="s-date" value="' + esc(t.d || today()) + '"></div>' +
-      '<div><label class="f">来源</label><input type="text" id="s-src" maxlength="20" value="' + esc(t.src || "") + '" placeholder="支付宝 / 微信…"></div></div>' +
-      '<div class="acts">' + (isNew ? "" : '<button type="button" class="btn danger" data-x="del">删除</button>') +
-      '<button type="button" class="btn pri" data-x="save">' + (isNew ? "记上" : "保存") + "</button></div>");
-    function q(id) { return m.querySelector("#" + id); }
+      '<div class="pad-top"><div class="seg" id="s-kind"><button type="button" data-k="out" class="' + (kind === "out" ? "on" : "") + '">支出</button>' +
+      '<button type="button" data-k="in" class="' + (kind === "in" ? "on" : "") + '">收入</button></div>' +
+      '<span class="dim small" style="flex:1;text-align:center">' + esc(opts.title || (isNew ? "" : "改这一笔")) + "</span>" + closeBtn() + "</div>" +
+      (opts.hint ? '<p class="dim small" style="margin:2px 2px 0">' + esc(opts.hint) + "</p>" : "") +
+      '<div class="amt-show" id="s-show"></div>' +
+      '<div class="catgrid" id="s-cats"' + (kind === "in" ? " hidden" : "") + "></div>" +
+      '<div class="notein"><input type="text" id="s-note" maxlength="60" placeholder="备注：商家、用途" value="' + esc(t.note || "") + '" enterkeyhint="done"></div>' +
+      '<div class="quick" id="s-quick"></div>' +
+      '<div class="dates" id="s-dates"></div>' +
+      '<div class="keys" id="s-keys">' +
+      "<button type=\"button\" data-n=\"7\">7</button><button type=\"button\" data-n=\"8\">8</button><button type=\"button\" data-n=\"9\">9</button><button type=\"button\" class=\"op\" data-n=\"back\">⌫</button>" +
+      "<button type=\"button\" data-n=\"4\">4</button><button type=\"button\" data-n=\"5\">5</button><button type=\"button\" data-n=\"6\">6</button><button type=\"button\" class=\"op\" data-n=\"+\">＋</button>" +
+      "<button type=\"button\" data-n=\"1\">1</button><button type=\"button\" data-n=\"2\">2</button><button type=\"button\" data-n=\"3\">3</button>" +
+      '<button type="button" class="ok" data-x="save">' + (isNew ? "记上" : "保存") + "</button>" +
+      "<button type=\"button\" data-n=\".\">.</button><button type=\"button\" data-n=\"0\">0</button><button type=\"button\" class=\"op\" data-n=\"-\">－</button></div>" +
+      (isNew ? "" : '<button type="button" class="btn danger wide" data-x="del" style="margin-top:10px;background:var(--card)">删除这一笔</button>'));
+    var q = function (id) { return m.querySelector("#" + id); };
+    function paintAmt() {
+      var v = parseAmt(expr), el = q("s-show");
+      el.className = "amt-show" + (expr ? "" : " empty");
+      el.innerHTML = '<span class="expr">' + (/[-+]/.test(expr.slice(1)) ? esc(expr.replace(/-/g, " − ").replace(/\+/g, " + ")) : "&nbsp;") + "</span>" +
+        '<span class="cur">' + esc(cur()) + '</span><span class="v">' + (!expr ? "0" : !/[-+]/.test(expr.slice(1)) || v === null || isNaN(v) ? esc(expr.replace(/[-+]$/, "")) : esc(plain(v))) + "</span>";
+    }
+    function paintCats() {
+      q("s-cats").innerHTML = cats.map(function (c) {
+        return '<button type="button" data-c="' + esc(c.id) + '" class="' + (cat === c.id ? "on" : "") + '"><span class="dot" style="background:' + catColor(c.id) + '">' + esc(initial(c.name)) + "</span>" + esc(c.name) + "</button>";
+      }).join("");
+    }
+    function paintQuick() {
+      var ns = notesFor(cat, kind).filter(function (n) { return n !== q("s-note").value.trim(); }).slice(0, 6);
+      q("s-quick").innerHTML = ns.map(function (n) { return '<button type="button" data-q="' + esc(n) + '">' + esc(n) + "</button>"; }).join("");
+      q("s-quick").hidden = !ns.length;
+    }
+    function paintDates() {
+      var t0 = today(), opts2 = [[t0, "今天"], [add(t0, -1), "昨天"], [add(t0, -2), "前天"]];
+      var isQuick = opts2.some(function (o) { return o[0] === d; });
+      q("s-dates").innerHTML = opts2.map(function (o) { return '<button type="button" data-d="' + o[0] + '" class="' + (d === o[0] ? "on" : "") + '">' + o[1] + "</button>"; }).join("") +
+        '<label class="' + (isQuick ? "" : "on") + '">' + (isQuick ? "选日期" : esc(nice(d))) + '<input type="date" id="s-date" value="' + esc(d) + '"></label>' +
+        '<span class="grow"></span>' +
+        (src ? '<button type="button" data-src="1" title="去掉来源">' + esc(src) + " ✕</button>" : "");
+    }
+    paintAmt(); paintCats(); paintQuick(); paintDates();
+    m.addEventListener("change", function (e) {
+      if (e.target.id === "s-date" && validDate(e.target.value)) { d = e.target.value; paintDates(); }
+      if (e.target.id === "s-note") {
+        if (kind === "out" && !catTouched) {
+          var g = Bills.guessCat(e.target.value, S.budget.categories, learned());
+          if (g) { cat = g; [].forEach.call(q("s-cats").children, function (b) { b.classList.toggle("on", b.dataset.c === cat); }); }
+        }
+        paintQuick();
+      }
+    });
+    q("s-note").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } });
     m.addEventListener("click", function (e) {
-      var k = e.target.closest("[data-k]"), c = e.target.closest("[data-c]"), x = e.target.closest("[data-x]");
+      var n = e.target.closest("[data-n]"), k = e.target.closest("[data-k]"), c = e.target.closest("[data-c]"),
+          qq = e.target.closest("[data-q]"), dd = e.target.closest("[data-d]"), sr = e.target.closest("[data-src]"), x = e.target.closest("[data-x]");
+      if (n) {
+        var key = n.dataset.n;
+        if (key === "back") expr = expr.slice(0, -1);
+        else if (key === "+" || key === "-") { if (expr && !/[-+.]$/.test(expr)) expr += key; else if (expr && /[-+]$/.test(expr)) expr = expr.slice(0, -1) + key; }
+        else if (key === ".") { var last = expr.split(/[-+]/).pop(); if (last.indexOf(".") < 0) expr += last ? "." : "0."; }
+        else {
+          var seg = expr.split(/[-+]/).pop();
+          if (/\.\d\d$/.test(seg) || seg.replace(".", "").length >= 9) return;
+          if (seg === "0") expr = expr.slice(0, -1);
+          expr += key;
+        }
+        paintAmt();
+        return;
+      }
       if (k) {
         kind = k.dataset.k;
         [].forEach.call(q("s-kind").children, function (b) { b.classList.toggle("on", b === k); });
-        q("s-catw").hidden = kind === "in";
+        q("s-cats").hidden = kind === "in";
+        paintQuick();
+        return;
       }
       if (c) {
         cat = cat === c.dataset.c ? "" : c.dataset.c;
+        catTouched = true;
         [].forEach.call(q("s-cats").children, function (b) { b.classList.toggle("on", b.dataset.c === cat); });
+        paintQuick();
+        return;
       }
+      if (qq) {
+        q("s-note").value = qq.dataset.q;
+        if (kind === "out" && !catTouched) {
+          var g = Bills.guessCat(qq.dataset.q, S.budget.categories, learned());
+          if (g) { cat = g; paintCats(); }
+        }
+        paintQuick();
+        return;
+      }
+      if (dd) { d = dd.dataset.d; paintDates(); return; }
+      if (sr) { src = ""; paintDates(); return; }
       if (!x) return;
-      if (x.dataset.x === "close") { m.remove(); return; }
-      if (x.dataset.x === "del") { m.remove(); removeTx(t.id); return; }
-      var amt = parseAmt(q("s-amt").value);
-      if (!amt || isNaN(amt) || amt <= 0) { toast("金额看不懂", "bad"); return; }
-      var d = q("s-date").value;
+      if (x.dataset.x === "close") { close(m); return; }
+      if (x.dataset.x === "del") { close(m); removeTx(t.id); return; }
+      var amt = parseAmt(expr);
+      if (amt === null) { toast("先按金额", "bad"); return; }
+      if (isNaN(amt) || amt <= 0) { toast("金额不对", "bad"); return; }
       if (!validDate(d)) { toast("日期不对", "bad"); return; }
+      var note = q("s-note").value.trim();
+      if (kind === "out" && !cat) cat = Bills.guessCat(note, S.budget.categories, learned()) || "";
       var row = isNew ? { id: uid(), ts: Date.now() } : t;
-      row.amt = amt; row.kind = kind; row.cat = kind === "in" ? "" : cat; row.note = q("s-note").value.trim(); row.d = d;
-      var src = q("s-src").value.trim();
+      row.amt = amt; row.kind = kind; row.cat = kind === "in" ? "" : cat; row.note = note; row.d = d;
       if (src) row.src = src; else delete row.src;
       if (t.ref) row.ref = t.ref;
       if (isNew) S.budget.tx.push(row);
-      m.remove();
+      close(m);
       if (d.slice(0, 7) !== S.month) S.month = d.slice(0, 7);
       changed("budget");
-      toast((isNew ? "记了 " : "改好了 ") + fmt(amt), "", isNew ? { label: "撤销", run: function () { removeTx(row.id, true); } } : null, 5000);
+      toast((isNew ? "记了 " : "改好了 ") + fmt(amt) + (row.cat ? " · " + catName(row.cat) : ""), "",
+            isNew ? { label: "撤销", run: function () { removeTx(row.id, true); } } : null, 5000);
     });
-    if (opts.focusAmt || !t.amt) setTimeout(function () { q("s-amt").focus(); }, 50);
   }
 
   /* ------------------------------------------------------------ 日程 */
@@ -426,7 +920,7 @@
         var dim = daysIn(m.slice(0, 7));
         S.budget.recurring.forEach(function (b) {
           var d = m.slice(0, 8) + p2(Math.min(b.day, dim));
-          if (d >= from && d <= to) out.push({ ro: true, d: d, e: d, all: true, title: (b.kind === "in" ? "进账 · " : "付款 · ") + b.name + " " + fmt(b.amt), color: "var(--dim)" });
+          if (d >= from && d <= to) out.push({ ro: true, d: d, e: d, all: true, title: (b.kind === "in" ? "进账 · " : "付款 · ") + b.name + " " + fmt(b.amt), color: "var(--faint)" });
         });
       }
     }
@@ -437,73 +931,140 @@
     });
     return out;
   }
+  /* 按天摊开：多天的全天日程每一天都算 */
+  function byDay(items, from, to) {
+    var r = {};
+    items.forEach(function (it) {
+      for (var d = it.d < from ? from : it.d; d <= it.e && d <= to; d = add(d, 1)) (r[d] = r[d] || []).push(it);
+    });
+    return r;
+  }
   function remText(ev) {
     if (ev.remind === undefined || ev.remind === "" || ev.remind === null) return "";
     var r = REMN.filter(function (x) { return x[0] === String(ev.remind); })[0];
     return r ? "🔔 " + r[1].replace("提前 ", "") : "";
   }
+  function evRow(it, d) {
+    var sub = [];
+    if (it.e > it.d) sub.push(nice(it.d).replace(/ 周.$/, "") + " – " + nice(it.e).replace(/ 周.$/, ""));
+    if (it.ev && it.ev.rep && it.ev.rep !== "none") sub.push(REPN[it.ev.rep]);
+    if (it.ev) { var r = remText(it.ev); if (r) sub.push(r); }
+    if (it.ev && it.ev.note) sub.push(it.ev.note.split("\n")[0].slice(0, 40));
+    return '<div class="ev' + (it.ro ? " ro" : " tap") + '"' + (it.ev ? ' data-id="' + esc(it.ev.id) + '" data-d="' + it.d + '"' : "") + ">" +
+      '<span class="tm">' + (it.all || !it.t ? "全天" : esc(it.t) + (it.f ? "<small>" + esc(it.f) + "</small>" : "")) + "</span>" +
+      '<span class="bar" style="background:' + esc(it.color) + '"></span>' +
+      '<div class="nm">' + esc(it.title) + (sub.length ? '<div class="sub">' + esc(sub.join(" · ")) + "</div>" : "") + "</div></div>";
+  }
   function renderCal() {
-    var v = $("v-cal"), from = today(), to = add(from, S.days - 1), items = instances(from, to);
+    var v = $("v-cal"), cm = S.calMonth, t0 = today();
+    if (!S.sel) S.sel = t0;
+    var first = cm + "-01", gStart = add(first, -dow(first));
+    var weeks = Math.ceil((dow(first) + daysIn(cm)) / 7), gEnd = add(gStart, weeks * 7 - 1);
+    var aEnd = add(t0, 7);
+    var lo = gStart < t0 ? gStart : t0, hi = gEnd > aEnd ? gEnd : aEnd;
+    if (S.sel < lo) lo = S.sel;
+    if (S.sel > hi) hi = S.sel;
+    var all = byDay(instances(lo, hi), lo, hi);
     var h = "";
     var due = reminderPayload(), sent = pref("remsig");
     if (due.items.length && sent !== due.sig) {
-      h += '<div class="banner warn"><span class="grow">有 ' + due.items.length + " 个提醒还没推到 iPhone 提醒事项</span>" +
-        '<button class="btn sm" type="button" data-a="push">推送</button></div>';
+      h += '<div class="banner" style="margin:0 0 10px"><span class="grow">🔔 有 ' + due.items.length + " 个提醒还没推到 iPhone</span>" +
+        '<button class="btn sm pri" type="button" data-a="push">推送</button></div>';
     }
-    /* 正在进行中的多天日程要在今天之前就开始，starts() 已经把它们算进来了 */
-    var byDay = {};
-    items.forEach(function (it) {
-      var d = it.d < from ? from : it.d;
-      (byDay[d] = byDay[d] || []).push(it);
-    });
-    var days = Object.keys(byDay).sort();
-    if (!days.length) h += '<div class="empty">接下来 ' + S.days + " 天没有日程。点右下角 ＋ 加一个。</div>";
-    days.forEach(function (d) {
-      var rel = diff(from, d);
-      h += '<div class="daygrp' + (rel === 0 ? " today" : "") + '">' + esc(nice(d)) + "<span>" +
-        (rel === 0 ? "今天" : rel === 1 ? "明天" : rel === 2 ? "后天" : rel + " 天后") + "</span></div>";
-      byDay[d].forEach(function (it) {
-        var sub = [];
-        if (it.e > it.d) sub.push("到 " + nice(it.e));
-        if (it.ev && it.ev.rep && it.ev.rep !== "none") sub.push(REPN[it.ev.rep]);
-        if (it.ev) { var r = remText(it.ev); if (r) sub.push(r); }
-        if (it.ev && it.ev.note) sub.push(it.ev.note.split("\n")[0].slice(0, 40));
-        h += '<div class="ev' + (it.ro ? " ro" : "") + '"' + (it.ev ? ' data-id="' + esc(it.ev.id) + '" data-d="' + it.d + '"' : "") + ">" +
-          '<span class="tm">' + (it.all || !it.t ? "全天" : esc(it.t)) + "</span>" +
-          '<span class="bar" style="background:' + esc(it.color) + '"></span>' +
-          '<div class="nm">' + esc(it.title) + (sub.length ? '<div class="sub">' + esc(sub.join(" · ")) + "</div>" : "") + "</div></div>";
+    h += '<div class="mon" style="justify-content:space-between"><button type="button" data-a="c-prev" aria-label="上个月">‹</button><b>' + monLabel(cm) + "</b>" +
+      '<button type="button" data-a="c-next" aria-label="下个月">›</button><span class="grow"></span>' +
+      (S.sel !== t0 || cm !== t0.slice(0, 7) ? '<button type="button" class="now" data-a="c-today">今天</button>' : "") +
+      '<button type="button" class="now" data-a="c-cats" style="margin-left:6px">分类</button></div>';
+    h += '<div class="cal"><div class="wd">' + WD.split("").map(function (w) { return "<span>" + w + "</span>"; }).join("") + '</div><div class="gr">';
+    var rowsShown = S.fold ? [Math.floor(diff(gStart, S.sel >= gStart && S.sel <= gEnd ? S.sel : (t0 >= gStart && t0 <= gEnd ? t0 : gStart)) / 7)] : null;
+    for (var i = 0; i < weeks * 7; i++) {
+      if (rowsShown && Math.floor(i / 7) !== rowsShown[0]) continue;
+      var d = add(gStart, i), its = all[d] || [], cols = [];
+      its.forEach(function (it) { if (!it.ro && cols.indexOf(it.color) < 0) cols.push(it.color); });
+      if (!cols.length && its.length) cols.push("var(--faint)");
+      h += '<button type="button" data-day="' + d + '" class="' + (d.slice(0, 7) !== cm ? "out " : "") + (d === t0 ? "today " : "") + (d === S.sel ? "sel" : "") + '">' +
+        "<span>" + (+d.slice(8)) + '</span><div class="dots">' + cols.slice(0, 3).map(function (c) { return '<i style="background:' + esc(c) + '"></i>'; }).join("") + "</div></button>";
+    }
+    h += '</div><button type="button" class="fold" data-a="fold">' + (S.fold ? "展开整月 ⌄" : "收起 ⌃") + "</button></div>";
+
+    var sel = all[S.sel] || [];
+    h += '<div class="agday"><b>' + esc(nice(S.sel)) + "</b><span>" + rel(S.sel) + "</span></div><div class=\"list\">";
+    h += sel.length ? sel.map(function (it) { return evRow(it, S.sel); }).join("") :
+      '<div class="empty">这天没有安排 · <button type="button" class="link" data-a="new" style="color:var(--fg);font-weight:600">加一个</button></div>';
+    h += "</div>";
+
+    var ahead = [];
+    for (var j = 0; j < 7; j++) { var dd = add(t0, j); if (dd !== S.sel && all[dd] && all[dd].length) ahead.push(dd); }
+    if (ahead.length) {
+      h += '<div class="sec"><h2>接下来 7 天</h2></div>';
+      ahead.forEach(function (dd) {
+        h += '<div class="agday"><span>' + esc(nice(dd)) + "</span><span>" + rel(dd) + '</span></div><div class="list">' +
+          all[dd].map(function (it) { return evRow(it, dd); }).join("") + "</div>";
       });
-    });
-    h += '<p style="text-align:center;margin:18px 0"><button class="btn sm" type="button" data-a="more">再往后看 60 天</button></p>';
+    }
     v.innerHTML = h;
   }
   function bindCal() {
-    $("v-cal").addEventListener("click", function (e) {
-      var a = e.target.closest("[data-a]"), it = e.target.closest(".ev[data-id]");
-      if (a && a.dataset.a === "more") { S.days += 60; render(); return; }
-      if (a && a.dataset.a === "push") { pushReminders(); return; }
+    var v = $("v-cal"), sx = null, sy = 0;
+    v.addEventListener("click", function (e) {
+      var a = e.target.closest("[data-a]"), dy = e.target.closest("[data-day]"), it = e.target.closest(".ev[data-id]");
+      if (a) {
+        var act = a.dataset.a;
+        if (act === "c-prev" || act === "c-next") {
+          S.calMonth = shiftMonth(S.calMonth, act === "c-prev" ? -1 : 1);
+          S.sel = S.calMonth === thisMonth() ? today() : S.calMonth + "-01";
+          render();
+        }
+        if (act === "c-today") { S.calMonth = thisMonth(); S.sel = today(); render(); }
+        if (act === "c-cats") calCatsSheet();
+        if (act === "fold") { S.fold = !S.fold; pref("fold", S.fold ? "1" : null); render(); }
+        if (act === "push") pushReminders();
+        if (act === "new") evSheet(null, S.sel);
+        return;
+      }
+      if (dy) {
+        S.sel = dy.dataset.day;
+        if (S.sel.slice(0, 7) !== S.calMonth) S.calMonth = S.sel.slice(0, 7);
+        render();
+        return;
+      }
       if (it) {
         var ev = S.cal.events.filter(function (x) { return x.id === it.dataset.id; })[0];
         if (ev) evSheet(ev, it.dataset.d);
       }
     });
-    $("fab").addEventListener("click", function () { evSheet(null, today()); });
+    /* 月历上左右滑换月 */
+    v.addEventListener("touchstart", function (e) { sx = e.target.closest(".cal") ? e.touches[0].clientX : null; sy = e.touches[0].clientY; }, { passive: true });
+    v.addEventListener("touchend", function (e) {
+      if (sx === null) return;
+      var dx = e.changedTouches[0].clientX - sx, dyy = e.changedTouches[0].clientY - sy;
+      sx = null;
+      if (Math.abs(dx) < 60 || Math.abs(dyy) > Math.abs(dx)) return;
+      S.calMonth = shiftMonth(S.calMonth, dx < 0 ? 1 : -1);
+      S.sel = S.calMonth === thisMonth() ? today() : S.calMonth + "-01";
+      render();
+    });
   }
   function opt(list, sel) {
     return list.map(function (x) { return '<option value="' + esc(x[0]) + '"' + (String(sel) === x[0] ? " selected" : "") + ">" + esc(x[1]) + "</option>"; }).join("");
   }
   function evSheet(ev, occ) {
-    var isNew = !ev, e = ev || { title: "", date: occ || today(), allDay: false, start: "09:00", finish: "10:00", rep: "none", cat: S.cal.cats[0].id, remind: "", note: "" };
+    var isNew = !ev, e = ev || { title: "", date: occ || today(), allDay: false, start: nextHour(), finish: "", rep: "none", cat: S.cal.cats[0].id, remind: "", note: "" };
+    if (isNew) e.finish = hm(mins(e.start) + 60);
     var cat = e.cat, rep = e.rep || "none";
     var m = sheet(
-      "<h3>" + (isNew ? "新日程" : "日程") + '<button type="button" class="link" data-x="close">关闭</button></h3>' +
-      '<label class="f">标题</label><input type="text" id="e-title" maxlength="80" value="' + esc(e.title) + '" placeholder="组会、交作业、看牙……">' +
-      '<div class="two"><div><label class="f">日期</label><input type="date" id="e-date" value="' + esc(e.date) + '"></div>' +
-      '<div><label class="chk" style="margin-top:34px"><input type="checkbox" id="e-all"' + (e.allDay ? " checked" : "") + "> 全天</label></div></div>" +
-      '<div class="two" id="e-times"' + (e.allDay ? " hidden" : "") + '><div><label class="f">开始</label><input type="time" id="e-start" value="' + esc(e.start || "09:00") + '"></div>' +
-      '<div><label class="f">结束</label><input type="time" id="e-finish" value="' + esc(e.finish || "10:00") + '"></div></div>' +
-      '<div id="e-endw"' + (e.allDay ? "" : " hidden") + '><label class="f">到（多天，可空）</label><input type="date" id="e-end" value="' + esc(e.end || "") + '"></div>' +
-      '<label class="f">分类</label><div class="chips" id="e-cats" style="margin-top:0">' + catChips(cat, S.cal.cats, "data-c") + "</div>" +
+      "<h3>" + (isNew ? "新日程" : "日程") + closeBtn() + "</h3>" +
+      '<input type="text" id="e-title" maxlength="80" value="' + esc(e.title) + '" placeholder="组会、交作业、看牙……" style="font-size:18px;font-weight:600">' +
+      '<div class="card" style="margin-top:10px;padding:4px 16px">' +
+      '<label class="row" style="justify-content:space-between;min-height:48px"><span>全天</span><span class="sw"><input type="checkbox" id="e-all"' + (e.allDay ? " checked" : "") + "><span></span></span></label>" +
+      '<div class="row" style="min-height:52px;border-top:.5px solid var(--line)"><span class="grow">日期</span><input type="date" id="e-date" value="' + esc(e.date) + '" style="width:auto"></div>' +
+      '<div id="e-times"' + (e.allDay ? " hidden" : "") + '><div class="row" style="min-height:52px;border-top:.5px solid var(--line)"><span class="grow">开始</span><input type="time" id="e-start" value="' + esc(e.start || "09:00") + '" style="width:auto"></div>' +
+      '<div class="row" style="min-height:52px;border-top:.5px solid var(--line)"><span class="grow">结束</span><input type="time" id="e-finish" value="' + esc(e.finish || "10:00") + '" style="width:auto"></div></div>' +
+      '<div id="e-endw"' + (e.allDay ? "" : " hidden") + '><div class="row" style="min-height:52px;border-top:.5px solid var(--line)"><span class="grow">到（多天）</span><input type="date" id="e-end" value="' + esc(e.end || "") + '" style="width:auto"></div></div>' +
+      "</div>" +
+      '<label class="f">分类</label><div class="chips" id="e-cats">' + S.cal.cats.map(function (c) {
+        return '<button type="button" class="chip' + (cat === c.id ? " on" : "") + '" data-c="' + esc(c.id) + '"><i style="background:' + esc(c.color) + '"></i>' + esc(c.name) + "</button>";
+      }).join("") + "</div>" +
       '<div class="two"><div><label class="f">重复</label><select id="e-rep">' + opt(Object.keys(REPN).map(function (k) { return [k, REPN[k]]; }), rep) + "</select></div>" +
       '<div><label class="f">提醒</label><select id="e-rem">' + opt(REMN, e.remind == null ? "" : e.remind) + "</select></div></div>" +
       '<div id="e-untilw"' + (rep === "none" ? " hidden" : "") + '><label class="f">重复到（可空）</label><input type="date" id="e-until" value="' + esc(e.until || "") + '"></div>' +
@@ -513,15 +1074,20 @@
     function q(id) { return m.querySelector("#" + id); }
     q("e-all").addEventListener("change", function () { q("e-times").hidden = this.checked; q("e-endw").hidden = !this.checked; });
     q("e-rep").addEventListener("change", function () { q("e-untilw").hidden = this.value === "none"; });
+    q("e-start").addEventListener("change", function () {
+      var dur = mins(e.finish || "10:00") - mins(e.start || "09:00");
+      if (dur <= 0) dur = 60;
+      q("e-finish").value = hm(mins(this.value) + dur);
+      e.start = this.value; e.finish = q("e-finish").value;
+    });
     m.addEventListener("click", function (evt) {
       var c = evt.target.closest("[data-c]"), x = evt.target.closest("[data-x]");
       if (c) { cat = c.dataset.c; [].forEach.call(q("e-cats").children, function (b) { b.classList.toggle("on", b.dataset.c === cat); }); }
       if (!x) return;
-      if (x.dataset.x === "close") { m.remove(); return; }
+      if (x.dataset.x === "close") { close(m); return; }
       if (x.dataset.x === "del") {
-        if (ev.rep && ev.rep !== "none") { m.remove(); delSheet(ev, occ); return; }
-        m.remove();
-        delEvent(ev);
+        close(m);
+        if (ev.rep && ev.rep !== "none") delSheet(ev, occ); else delEvent(ev);
         return;
       }
       var title = q("e-title").value.trim(), date = q("e-date").value, all = q("e-all").checked;
@@ -539,21 +1105,31 @@
       if (rem === "") delete t.remind; else t.remind = +rem;
       t.ex = t.ex || [];
       if (!ev) S.cal.events.push(t);
-      m.remove();
+      close(m);
+      S.sel = date; S.calMonth = date.slice(0, 7);
       changed("calendar");
       toast(ev ? "改好了" : "加上了：" + nice(date), "", t.remind !== undefined ? { label: "推到提醒事项", run: pushReminders } : null, 5000);
     });
-    if (isNew) setTimeout(function () { q("e-title").focus(); }, 50);
+    if (isNew) setTimeout(function () { q("e-title").focus(); }, 60);
   }
+  function nextHour() { var d = new Date(); return hm(Math.min(23, d.getHours() + 1) * 60); }
   function delSheet(ev, occ) {
-    var m = sheet("<h3>删除重复日程</h3><p>「" + esc(ev.title) + "」是" + esc(REPN[ev.rep]) + "重复的。</p>" +
+    var m = sheet("<h3>删除重复日程" + closeBtn() + "</h3><p style=\"margin:4px 2px\">「" + esc(ev.title) + "」是" + esc(REPN[ev.rep]) + "重复的。</p>" +
       '<div class="acts" style="flex-direction:column"><button type="button" class="btn" data-x="one">只删 ' + esc(nice(occ)) + " 这一次</button>" +
-      '<button type="button" class="btn danger" data-x="all">删除整个系列</button><button type="button" class="btn" data-x="no">取消</button></div>');
+      '<button type="button" class="btn danger" data-x="from">删掉这次和以后的</button>' +
+      '<button type="button" class="btn danger" data-x="all">删除整个系列</button></div>');
     m.addEventListener("click", function (e) {
       var x = e.target.closest("[data-x]");
       if (!x) return;
-      m.remove();
+      close(m);
       if (x.dataset.x === "one") { ev.ex = (ev.ex || []).concat([occ]); changed("calendar"); toast("这一次删掉了"); }
+      if (x.dataset.x === "from") {
+        if (occ <= ev.date) { delEvent(ev); return; }
+        var old = ev.until;
+        ev.until = add(occ, -1);
+        changed("calendar");
+        toast("从 " + nice(occ) + " 起不再重复", "", { label: "撤销", run: function () { ev.until = old; changed("calendar"); } }, 5000);
+      }
       if (x.dataset.x === "all") delEvent(ev);
     });
   }
@@ -563,6 +1139,80 @@
     S.cal.events.splice(i, 1);
     changed("calendar");
     toast("删了「" + ev.title + "」", "", { label: "撤销", run: function () { S.cal.events.push(ev); changed("calendar"); } }, 5000);
+  }
+  /* 日程分类：显示/隐藏、改名、换颜色、删除（里面的日程归到你选的分类）、新建 */
+  function calCatsSheet() {
+    function body() {
+      return "<h3>日程分类" + closeBtn() + '</h3><div class="list">' + S.cal.cats.map(function (c) {
+        var n = S.cal.events.filter(function (e) { return e.cat === c.id; }).length;
+        return '<div class="cell tap" data-cc="' + esc(c.id) + '"><span class="dot" style="width:14px;height:14px;border-radius:50%;background:' + esc(c.color) + ';flex:none"></span>' +
+          '<div class="grow"><div>' + esc(c.name) + '</div><div class="sub">' + n + " 个日程</div></div>" +
+          '<span class="sw" data-noopen="1"><input type="checkbox" data-vis="' + esc(c.id) + '"' + (S.cal.hide.indexOf(c.id) < 0 ? " checked" : "") + "><span></span></span></div>";
+      }).join("") + "</div>" +
+        '<button type="button" class="btn wide" data-x="add" style="margin-top:10px;background:var(--card)">＋ 新分类</button>' +
+        '<div class="card" style="margin-top:10px"><label class="row" style="justify-content:space-between"><span>显示预算里的固定收支<div class="dim small">每月付款、进账的日子</div></span>' +
+        '<span class="sw"><input type="checkbox" id="ov-bills"' + (S.cal.show.bills !== false ? " checked" : "") + "><span></span></span></label></div>" +
+        '<p class="dim small" style="margin:10px 4px 0">开关控制在日程里显不显示；点名字改名、换颜色或删除。</p>';
+    }
+    var m = sheet(body());
+    var sh = m.firstChild;
+    function redraw() { sh.innerHTML = '<div class="grab"></div>' + body(); }
+    m.addEventListener("change", function (e) {
+      var vis = e.target.dataset.vis;
+      if (vis) {
+        S.cal.hide = S.cal.hide.filter(function (x) { return x !== vis; });
+        if (!e.target.checked) S.cal.hide.push(vis);
+        changed("calendar");
+      }
+      if (e.target.id === "ov-bills") { S.cal.show.bills = e.target.checked; changed("calendar"); }
+    });
+    m.addEventListener("click", function (e) {
+      var x = e.target.closest("[data-x]"), cc = e.target.closest("[data-cc]");
+      if (e.target.closest("[data-noopen]")) return;
+      if (x && x.dataset.x === "close") { close(m); return; }
+      if (x && x.dataset.x === "add") { close(m); calCatEdit(null); return; }
+      if (cc) { close(m); calCatEdit(S.cal.cats.filter(function (c) { return c.id === cc.dataset.cc; })[0]); }
+    });
+  }
+  function calCatEdit(c) {
+    var isNew = !c, used = S.cal.cats.map(function (x) { return x.color; });
+    var color = c ? c.color : (PALETTE.filter(function (p) { return used.indexOf(p) < 0; })[0] || PALETTE[S.cal.cats.length % PALETTE.length]);
+    var rest = S.cal.cats.filter(function (x) { return x !== c; });
+    var n = c ? S.cal.events.filter(function (e) { return e.cat === c.id; }).length : 0;
+    var m = sheet("<h3>" + (isNew ? "新分类" : "分类") + closeBtn() + "</h3>" +
+      '<input type="text" id="cc-name" maxlength="12" value="' + esc(c ? c.name : "") + '" placeholder="名字">' +
+      '<label class="f">颜色</label><div class="chips" id="cc-col">' + PALETTE.map(function (p) {
+        return '<button type="button" class="chip' + (p === color ? " on" : "") + '" data-col="' + p + '" style="padding:6px"><i style="width:22px;height:22px;background:' + p + '"></i></button>';
+      }).join("") + "</div>" +
+      (!isNew && rest.length ? '<label class="f">删除时，里面的 ' + n + ' 个日程归到</label><select id="cc-to">' +
+        rest.map(function (r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + "</option>"; }).join("") + "</select>" : "") +
+      '<div class="acts">' + (!isNew && rest.length ? '<button type="button" class="btn danger" data-x="del">删除</button>' : "") +
+      '<button type="button" class="btn pri" data-x="save">' + (isNew ? "加上" : "保存") + "</button></div>");
+    var q = function (id) { return m.querySelector("#" + id); };
+    if (isNew) setTimeout(function () { q("cc-name").focus(); }, 60);
+    m.addEventListener("click", function (e) {
+      var col = e.target.closest("[data-col]"), x = e.target.closest("[data-x]");
+      if (col) { color = col.dataset.col; [].forEach.call(q("cc-col").children, function (b) { b.classList.toggle("on", b === col); }); return; }
+      if (!x) return;
+      if (x.dataset.x === "close") { close(m); calCatsSheet(); return; }
+      if (x.dataset.x === "del") {
+        var to = q("cc-to").value, toName = rest.filter(function (r) { return r.id === to; })[0].name;
+        ask("删掉分类「" + c.name + "」？里面的 " + n + " 个日程归到「" + toName + "」。", "删除", true).then(function (y) {
+          if (!y) return;
+          S.cal.events.forEach(function (ev) { if (ev.cat === c.id) ev.cat = to; });
+          S.cal.cats = rest;
+          S.cal.hide = S.cal.hide.filter(function (h) { return h !== c.id; });
+          close(m); changed("calendar"); calCatsSheet();
+        });
+        return;
+      }
+      var name = q("cc-name").value.trim();
+      if (!name) { toast("写个名字", "bad"); return; }
+      if (S.cal.cats.some(function (o) { return o !== c && o.name === name; })) { toast("已经有这个分类了", "bad"); return; }
+      if (isNew) S.cal.cats.push({ id: "c" + uid(), name: name.slice(0, 12), color: color });
+      else { c.name = name.slice(0, 12); c.color = color; }
+      close(m); changed("calendar"); calCatsSheet();
+    });
   }
 
   /* 提醒：把接下来 30 天要提醒的每一次交给快捷指令，由它写进 iPhone「提醒事项」，到点系统弹窗 */
@@ -596,18 +1246,28 @@
 
   /* ------------------------------------------------------------ 设置 */
   var syncState = {};
+  function swRow(id, label, sub, on) {
+    return '<label class="cell"><div class="grow"><div>' + label + "</div>" + (sub ? '<div class="sub">' + sub + "</div>" : "") + "</div>" +
+      '<span class="sw"><input type="checkbox" id="' + id + '"' + (on ? " checked" : "") + "><span></span></span></label>";
+  }
   function renderSet() {
     var base = location.origin + "/app/";
-    var h = "<h2>同步</h2><div class=\"card\">" +
-      '<div class="it"><span>账本</span><span class="dim small">' + esc(syncState.budget || "…") + "</span></div>" +
-      '<div class="it"><span>日程</span><span class="dim small">' + esc(syncState.calendar || "…") + "</span></div>" +
-      '<div class="row" style="margin-top:10px"><button class="btn sm" type="button" data-a="now">立即同步</button>' +
-      '<button class="btn sm" type="button" data-a="setup">令牌 / 口令</button></div></div>';
-    h += "<h2>记账</h2><div class=\"card\">" +
-      '<label class="chk" style="margin:0"><input type="checkbox" id="autosave"' + (pref("autosave") === "1" ? " checked" : "") + "> 截图识别出金额就直接记，不用再点确认</label>" +
-      '<div class="it"><span>导入支付宝 / 微信账单<div class="dim small">csv 或 xlsx；已经记过的会自动对上，不会重复</div></span>' +
-      '<label class="btn sm">选文件<input type="file" id="billfile" accept=".csv,.xlsx,text/csv" hidden></label></div></div>';
-    h += '<h2>快捷指令</h2><div class="guide">' +
+    var h = '<div class="sec" style="margin-top:6px"><h2>同步</h2></div><div class="list">' +
+      '<div class="cell"><div class="grow">账本</div><span class="dim small">' + esc(syncState.budget || "…") + "</span></div>" +
+      '<div class="cell"><div class="grow">日程</div><span class="dim small">' + esc(syncState.calendar || "…") + "</span></div>" +
+      '<div class="cell tap" data-a="now"><div class="grow">立即同步</div><span class="chev">›</span></div>' +
+      '<div class="cell tap" data-a="setup"><div class="grow">令牌 / 口令</div><span class="chev">›</span></div></div>';
+    h += '<div class="sec"><h2>记账</h2></div><div class="list">' +
+      swRow("autosave", "截图认出金额就直接记", "不弹确认，记完顶上有「改」可以修", pref("autosave") === "1") +
+      '<label class="cell tap"><div class="grow"><div>导入支付宝 / 微信账单</div><div class="sub">csv 或 xlsx；记过的自动对上，不重复</div></div><span class="chev">›</span>' +
+      '<input type="file" id="billfile" accept=".csv,.xlsx,text/csv" hidden></label>' +
+      '<div class="cell tap" data-a="csv-month"><div class="grow"><div>导出本月流水</div><div class="sub">CSV，和电脑上导出的一样</div></div><span class="chev">›</span></div>' +
+      '<div class="cell tap" data-a="csv-all"><div class="grow">导出全部流水</div><span class="chev">›</span></div>' +
+      '<div class="cell"><div class="grow">货币符号</div><input type="text" id="currency" maxlength="4" value="' + esc(cur()) + '" style="width:70px;text-align:center;min-height:36px;padding:6px"></div></div>';
+    h += '<div class="sec"><h2>日程</h2></div><div class="list">' +
+      '<div class="cell tap" data-a="push"><div class="grow"><div>把提醒推到「提醒事项」</div><div class="sub">接下来 30 天带提醒的日程，要先建好快捷指令②</div></div><span class="chev">›</span></div>' +
+      '<div class="cell tap" data-a="ccats"><div class="grow">日程分类</div><span class="chev">›</span></div></div>';
+    h += '<div class="sec"><h2>快捷指令</h2></div><div class="guide">' +
       "<details><summary>① 付完款轻点手机背面记一笔</summary><ol>" +
       "<li>打开「快捷指令」→ 右上 ＋ 新建，命名 <span class=\"k\">记一笔</span>。</li>" +
       "<li>添加操作 <span class=\"k\">截屏</span>。</li>" +
@@ -622,14 +1282,14 @@
       "<details><summary>② 日程到点弹窗（写进「提醒事项」）</summary><ol>" +
       "<li>先在「提醒事项」App 里建一个列表，名字叫 <span class=\"k\">日程</span>。</li>" +
       "<li>新建快捷指令，名字必须是 <span class=\"k\">" + esc(SHORTCUT) + "</span>。</li>" +
-      "<li>添加 <span class=\"k\">获取输入中的词典</span>（输入：快捷指令输入）。</li>" +
-      "<li>添加 <span class=\"k\">查找提醒事项</span>：过滤条件「列表 是 日程」且「未完成」，然后添加 <span class=\"k\">删除提醒事项</span>（输入：上一步的提醒事项）。这是为了先清掉旧的，再整批重写，不会重复。</li>" +
+      "<li>添加 <span class=\"k\">从输入中获取词典</span>（输入：快捷指令输入）。</li>" +
+      "<li>添加 <span class=\"k\">查找提醒事项</span>：过滤条件「列表 是 日程」且「已完成 不是」，然后添加 <span class=\"k\">移除提醒事项</span>（输入：上一步找到的）。先清掉旧的再整批重写，不会重复。</li>" +
       "<li>添加 <span class=\"k\">获取词典值</span>：键 <span class=\"k\">items</span>（词典：第 3 步的词典）。</li>" +
       "<li>添加 <span class=\"k\">重复每一项</span>（输入：上一步的值），在循环里：<br>" +
       "· <span class=\"k\">获取词典值</span> 键 <span class=\"k\">at</span>（词典：重复项目），再接 <span class=\"k\">从输入中获取日期</span>；<br>" +
       "· <span class=\"k\">获取词典值</span> 键 <span class=\"k\">title</span>，和键 <span class=\"k\">notes</span>；<br>" +
-      "· <span class=\"k\">添加新提醒事项</span>：标题选 title，列表选「日程」，展开后「提醒」开、日期选上面得到的日期，备注选 notes。</li>" +
-      "<li>回到这里，日程页顶上出现「推送」时点一下就行。新加带提醒的日程时，提示条上也有「推到提醒事项」。</li></ol>" +
+      "· <span class=\"k\">添加新提醒事项</span>：标题选 title，列表选「日程」，展开后「提醒我」开、日期选上面得到的日期，备注选 notes。</li>" +
+      "<li>回到这里，日程页顶上出现「推送」时点一下就行。</li></ol>" +
       '<p class="dim small">提醒事项到点会在锁屏弹出，Apple Watch 也会震。电脑上加的日程，下次打开手机 App 点「推送」就会补上。</p></details>' +
       "<details><summary>③ Apple Pay 刷卡自动记（可选）</summary><ol>" +
       "<li>快捷指令 → 自动化 → 新建 → <span class=\"k\">交易</span>，选你的卡，选「立即运行」。</li>" +
@@ -637,11 +1297,34 @@
       '<div class="copy"><input type="text" readonly value="' + esc(base + "#add?src=Apple%20Pay&amt=&note=") + '"><button class="btn sm" type="button" data-copy="' + esc(base + "#add?src=Apple%20Pay&amt=&note=") + '">复制</button></div>' +
       "<ol start=\"3\"><li>添加 <span class=\"k\">打开 URL</span>。</li></ol>" +
       '<p class="dim small">支付宝和微信的通知 iOS 不让快捷指令读，所以那两个只能靠①截图和月底导入账单。</p></details></div>';
-    h += '<h2>这台设备</h2><div class="card">' +
-      '<div class="it"><span>加到主屏幕</span><span class="dim small">Safari 底部「分享」→「添加到主屏幕」</span></div>' +
-      '<div class="it"><span>忘掉这台设备</span><button class="btn sm danger" type="button" data-a="forget">清除</button></div></div>' +
-      '<p class="dim small" style="margin-top:14px">数据格式和电脑上的预算页、日程页一样，两边随便改，联网后自动合并。同一条两边都改了的话，以后保存的那台为准。</p>';
+    h += '<div class="sec"><h2>这台设备</h2></div><div class="list">' +
+      '<div class="cell"><div class="grow"><div>加到主屏幕</div><div class="sub">Safari 底部「分享」→「添加到主屏幕」</div></div></div>' +
+      '<div class="cell tap" data-a="forget"><div class="grow" style="color:var(--bad)">忘掉这台设备</div></div></div>' +
+      '<p class="dim small" style="margin:14px 6px">数据格式和电脑上的预算页、日程页一样，两边随便改，联网后自动合并。同一条两边都改了的话，以本机为准。</p>';
     $("v-set").innerHTML = h;
+  }
+  function csvCell(v) { v = String(v == null ? "" : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function exportCsv(all) {
+    var rows = (all ? S.budget.tx.slice() : monthTx(S.month)).sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; });
+    if (!rows.length) { toast("没有流水可以导出", "bad"); return; }
+    var out = ["日期,类型,分类,金额,备注"];
+    rows.forEach(function (t) {
+      out.push([t.d, t.kind === "in" ? "收入" : "支出", t.kind === "in" ? "" : catName(t.cat), plain(t.amt), t.note].map(csvCell).join(","));
+    });
+    var name = "budget-" + (all ? "all" : S.month) + ".csv", text = "\ufeff" + out.join("\r\n") + "\r\n";
+    var file = null;
+    try { file = new File([text], name, { type: "text/csv" }); } catch (e) {}
+    /* iPhone 上走系统分享面板：存到「文件」或者发给自己 */
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).catch(function () {});
+      return;
+    }
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
   function bindSet() {
     var v = $("v-set");
@@ -655,16 +1338,26 @@
         return;
       }
       if (!a) return;
-      if (a.dataset.a === "now") { LabSync.syncNow("budget"); LabSync.syncNow("calendar"); }
-      if (a.dataset.a === "setup") LabSync.dialog().then(function (ok) { if (ok === "forgot") location.reload(); });
-      if (a.dataset.a === "forget") {
-        if (!window.confirm("清除这台设备上的令牌、密钥和离线副本？仓库里的数据不受影响。")) return;
-        LabSync.forget().then(function () { location.reload(); });
+      var act = a.dataset.a;
+      if (act === "now") { LabSync.syncNow("budget"); LabSync.syncNow("calendar"); toast("同步中…", "", null, 1200); }
+      if (act === "setup") LabSync.dialog().then(function (ok) { if (ok === "forgot") location.reload(); });
+      if (act === "csv-month") exportCsv(false);
+      if (act === "csv-all") exportCsv(true);
+      if (act === "push") pushReminders();
+      if (act === "ccats") calCatsSheet();
+      if (act === "forget") {
+        ask("清除这台设备上的令牌、密钥和离线副本？仓库里的数据不受影响。", "清除", true).then(function (y) {
+          if (y) LabSync.forget().then(function () { location.reload(); });
+        });
       }
     });
     v.addEventListener("change", function (e) {
       if (e.target.id === "autosave") pref("autosave", e.target.checked ? "1" : null);
       if (e.target.id === "billfile" && e.target.files[0]) { importBill(e.target.files[0]); e.target.value = ""; }
+      if (e.target.id === "currency") {
+        var c = e.target.value.trim().slice(0, 4) || "¥";
+        if (c !== S.budget.currency) { S.budget.currency = c; changed("budget"); toast("货币符号改成 " + c); }
+      }
     });
   }
 
@@ -674,15 +1367,18 @@
     }).then(function (r) {
       if (!r.rows) { toast("认不出这是支付宝还是微信的账单", "bad", null, 4000); return; }
       var rec = Bills.reconcile(r.rows, S.budget.tx), lrn = learned();
-      var m = sheet("<h3>导入" + esc(r.src) + "账单</h3>" +
-        "<p>共 " + r.rows.length + " 笔：新增 <b>" + rec.add.length + "</b>，和已记的对上 " + rec.match.length + "，重复跳过 " + rec.dup +
-        (r.skipped ? "，不计收支 / 已关闭 / 已退款 " + r.skipped : "") + "。</p>" +
-        '<p class="dim small">新增的按商家猜分类，以后可以在流水里点开改。</p>' +
-        '<div class="acts"><button type="button" class="btn" data-x="no">取消</button><button type="button" class="btn pri" data-x="ok">导入</button></div>');
+      var m = sheet("<h3>导入" + esc(r.src) + "账单" + closeBtn() + "</h3>" +
+        '<div class="list"><div class="cell"><div class="grow">账单里</div><span class="num">' + r.rows.length + " 笔</span></div>" +
+        '<div class="cell"><div class="grow">新增</div><b class="num">' + rec.add.length + "</b></div>" +
+        '<div class="cell"><div class="grow">和已记的对上</div><span class="num">' + rec.match.length + "</span></div>" +
+        '<div class="cell"><div class="grow">重复跳过</div><span class="num">' + rec.dup + "</span></div>" +
+        (r.skipped ? '<div class="cell"><div class="grow">不计收支 / 已关闭 / 已退款</div><span class="num">' + r.skipped + "</span></div>" : "") + "</div>" +
+        '<p class="dim small" style="margin:10px 4px 0">新增的按商家猜分类，之后可以在流水里点开改。</p>' +
+        '<div class="acts"><button type="button" class="btn pri" data-x="ok">导入</button></div>');
       m.addEventListener("click", function (e) {
         var x = e.target.closest("[data-x]");
         if (!x) return;
-        m.remove();
+        close(m);
         if (x.dataset.x !== "ok") return;
         rec.match.forEach(function (p) { if (p.row.ref) p.tx.ref = p.row.ref; if (!p.tx.src) p.tx.src = p.row.src; });
         rec.add.forEach(function (row) {
@@ -702,6 +1398,8 @@
     var h = location.hash.slice(1);
     if (!h) return;
     if (h === "cal") { go("cal"); clearHash(); return; }
+    if (h === "plan") { go("plan"); clearHash(); return; }
+    if (h === "add") { clearHash(); go("money"); txSheet({}); return; }
     if (h.indexOf("ocr=") === 0) {
       var text = "";
       try { text = decodeURIComponent(h.slice(4).replace(/\+/g, " ")); } catch (e) { text = h.slice(4); }
@@ -718,7 +1416,7 @@
       t.cat = t.kind === "in" ? "" : Bills.guessCat(note, S.budget.categories, learned());
       go("money");
       if (t.amt && pref("autosave") === "1") return autoSave(t);
-      txSheet(t, { title: "记一笔", hint: t.src ? "来自 " + t.src : "" });
+      txSheet(t, { title: t.src ? "来自 " + t.src : "记一笔" });
     }
   }
   function clearHash() { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { location.hash = ""; } }
@@ -727,15 +1425,12 @@
     var r = Bills.parseOcr(text);
     var t = { amt: isNaN(r.amt) ? 0 : r.amt, kind: r.kind, note: r.merchant || r.goods || "", src: r.src, d: r.d || today() };
     t.cat = t.kind === "in" ? "" : Bills.guessCat([r.merchant, r.goods].join(" "), S.budget.categories, learned());
-    if (!t.amt) {
-      txSheet(t, { title: "没认出金额", hint: "截图里没找到像金额的数字，手动填一下。", focusAmt: true });
-      return;
-    }
-    /* 同一天、同金额、已经记过的（比如重复截了两次）先提醒一下 */
+    if (!t.amt) { txSheet(t, { title: "没认出金额", hint: "截图里没找到像金额的数字，按一下键盘填上。" }); return; }
+    /* 同一天、同金额、几小时内记过的（比如重复截了两次）先提醒一下 */
     var dupe = S.budget.tx.filter(function (x) { return x.d === t.d && x.amt === t.amt && x.kind === t.kind && Date.now() - (x.ts || 0) < 6 * 3600e3; })[0];
-    if (t.amt && pref("autosave") === "1" && !dupe) return autoSave(t);
-    txSheet(t, { title: "截图记账", hint: dupe ? "今天已经记过一笔同样金额的（" + (dupe.note || "") + "），确认不是重复再记。" :
-                 "认出来的，核对一下" + (r.src ? "（" + r.src + "）" : "") });
+    if (pref("autosave") === "1" && !dupe) return autoSave(t);
+    txSheet(t, { title: "截图记账" + (r.src ? " · " + r.src : ""),
+                 hint: dupe ? "今天已经记过一笔同样金额的（" + (dupe.note || "") + "），确认不是重复再记。" : "" });
   }
   function autoSave(t) {
     var row = { id: uid(), d: t.d, amt: t.amt, kind: t.kind, cat: t.cat || "", note: t.note.slice(0, 60), ts: Date.now() };
@@ -748,10 +1443,12 @@
   /* ------------------------------------------------------------ 框架 */
   function go(tab) {
     S.tab = tab;
-    ["money", "cal", "set"].forEach(function (t) { $("v-" + t).hidden = t !== tab; });
+    ["money", "plan", "cal", "set"].forEach(function (t) { $("v-" + t).hidden = t !== tab; });
     [].forEach.call($("tabs").children, function (b) { b.classList.toggle("on", b.dataset.v === tab); });
-    $("title").textContent = { money: "记账", cal: "日程", set: "设置" }[tab];
-    $("fab").hidden = tab !== "cal";
+    $("title").textContent = TITLES[tab];
+    $("fab").hidden = tab === "set";
+    $("fab").setAttribute("aria-label", tab === "cal" ? "新日程" : "记一笔");
+    S.deferred = false;
     render();
     window.scrollTo(0, 0);
   }
@@ -762,12 +1459,12 @@
     if (ae && view && view.contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.type !== "file" && ae.type !== "checkbox") {
       if (!S.deferred) {
         S.deferred = true;
-        /* 等一会儿再画：点的是表单里的按钮时，要让那次点击先落地，不然按钮在手指抬起前就被换掉了 */
         ae.addEventListener("blur", function () { setTimeout(function () { if (S.deferred) { S.deferred = false; render(); } }, 400); }, { once: true });
       }
       return;
     }
     if (S.tab === "money") renderMoney();
+    if (S.tab === "plan") renderPlan();
     if (S.tab === "cal") renderCal();
     if (S.tab === "set") renderSet();
   }
@@ -781,7 +1478,7 @@
     $("synctxt").textContent = cls === "bad" ? "同步出错" : cls === "busy" ? "同步中" : st.indexOf("wait") >= 0 ? "离线" :
                                 st.indexOf("off") >= 0 ? "未连接" : "已同步";
     b.title = (syncState.budget || "") + " / " + (syncState.calendar || "");
-    if (S.tab === "set") renderSet();
+    if (S.tab === "set" && S.started && !document.querySelector("#v-set :focus")) renderSet();
   }
   function start() {
     $("gate").hidden = true;
@@ -791,6 +1488,9 @@
       S.budget = normB(a[0]);
       S.cal = normC(a[1]);
       S.month = thisMonth();
+      S.calMonth = thisMonth();
+      S.sel = today();
+      S.fold = pref("fold") === "1";
       S.started = true;
       LabSync.attach("budget", {
         get: function () { return S.budget; },
@@ -804,7 +1504,7 @@
         normalize: normC,
         isEmpty: function (d) { return !d || !d.events.length; }
       });
-      go(location.hash === "#cal" ? "cal" : "money");
+      go(location.hash === "#cal" ? "cal" : location.hash === "#plan" ? "plan" : "money");
       handleHash();
     });
   }
@@ -819,8 +1519,9 @@
   document.addEventListener("DOMContentLoaded", function () {
     if (!window.LabSync || !window.Bills) { document.body.textContent = "脚本没加载全，刷新一下。"; return; }
     LabSync.onStatus(paintSync);
-    bindMoney(); bindCal(); bindSet();
+    bindMoney(); bindPlan(); bindCal(); bindSet();
     $("tabs").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) go(b.dataset.v); });
+    $("fab").addEventListener("click", function () { if (S.tab === "cal") evSheet(null, S.sel || today()); else txSheet({}); });
     $("syncbtn").addEventListener("click", function () {
       if (!LabSync.isReady()) { LabSync.dialog().then(function (ok) { if (ok === true && !S.started) start(); }); return; }
       LabSync.syncNow("budget"); LabSync.syncNow("calendar");
@@ -829,13 +1530,18 @@
       LabSync.dialog({ mandatory: true }).then(function (ok) { if (ok === true) start(); });
     });
     window.addEventListener("hashchange", function () { if (S.started) handleHash(); });
+    /* 从后台切回来：过了零点要换「今天」，顺手同步一次 */
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden || !S.started) return;
+      if (LabSync.isReady()) { LabSync.syncNow("budget").catch(function () {}); LabSync.syncNow("calendar").catch(function () {}); }
+      render();
+    });
     if (!window.isSecureContext) { gate("要用 https 打开（phenolforever.com/app/）。"); return; }
     LabSync.ready().then(function (ok) {
       if (ok) start();
       else gate(location.hash.indexOf("ocr=") === 1 || location.hash.indexOf("add") === 1 ?
                 "截图已经带过来了，连上同步以后会接着记。" : "");
     });
-    /* 连上之前带着截图进来的：连上后再处理 */
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(function () {});
   });
 })();

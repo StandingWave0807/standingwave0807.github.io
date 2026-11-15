@@ -2,14 +2,15 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f2f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="邻苯">
+<meta name="format-detection" content="telephone=no">
 <title>邻苯 · 记账和日程</title>
 <link rel="manifest" href="/app/manifest.webmanifest">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -20,32 +21,36 @@
 <script src="/app/app.js" defer></script>
 </head>
 <body>
-<div class="top">
+<header class="top">
   <h1 id="title">记账</h1>
   <button class="sync" id="syncbtn" type="button"><i></i><span id="synctxt">…</span></button>
-</div>
+</header>
 
 <div id="gate" class="gate" hidden>
+  <div class="gate-mark">邻</div>
   <h2>先连上同步</h2>
-  <p>账本和日程加密后存在你的仓库里，这台设备第一次用要填一次 GitHub 令牌和同步口令，之后会记住。</p>
-  <p class="dim small">在电脑的预算页点过「同步」并设好口令的话，这里选「这台设备加入」，口令填同一个。</p>
-  <p><button class="btn pri wide" id="gatebtn" type="button">连接</button></p>
+  <p>账本和日程加密后存在你的仓库里。这台设备第一次用，要填一次 GitHub 令牌和同步口令，之后会记住。</p>
+  <p class="dim small">电脑上已经设过口令的话，选「这台设备加入」，口令填同一个。</p>
+  <button class="btn pri wide" id="gatebtn" type="button">连接</button>
   <p class="dim small" id="gatemsg"></p>
 </div>
 
 <main id="app" hidden>
   <section class="view" id="v-money"></section>
+  <section class="view" id="v-plan" hidden></section>
   <section class="view" id="v-cal" hidden></section>
-  <section class="view set" id="v-set" hidden></section>
+  <section class="view" id="v-set" hidden></section>
 </main>
 
-<button class="fab" id="fab" type="button" hidden aria-label="新日程">＋</button>
+<button class="fab" id="fab" type="button" hidden aria-label="记一笔"><span>＋</span></button>
 
 <nav class="tabs" id="tabs" hidden>
-  <button type="button" data-v="money" class="on"><b>¥</b>记账</button>
-  <button type="button" data-v="cal"><b>▦</b>日程</button>
-  <button type="button" data-v="set"><b>⚙</b>设置</button>
+  <button type="button" data-v="money" class="on"><svg viewBox="0 0 24 24"><path d="M6 4l6 7 6-7M12 11v9M7 13h10M7 17h10"/></svg>记账</button>
+  <button type="button" data-v="plan"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>预算</button>
+  <button type="button" data-v="cal"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>日程</button>
+  <button type="button" data-v="set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>设置</button>
 </nav>
+<div class="toast" id="toast" hidden></div>
 <noscript>要开 JavaScript。</noscript>
 </body>
 </html>
