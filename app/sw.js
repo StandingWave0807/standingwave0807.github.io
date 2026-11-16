@@ -1,7 +1,7 @@
 /* 只缓存 App 外壳，好让没网时也能打开、看本机副本、记账（联网后再同步）。
    数据本身不经过这里：GitHub API 的请求一律直连，不缓存。
    改了外壳文件就把 VERSION 加一。 */
-var VERSION = "phenol-app-4";
+var VERSION = "phenol-app-5";
 var SHELL = ["/app/", "/app/app.css", "/app/app.js", "/sync.js", "/bills.js", "/app/manifest.webmanifest", "/app/icon-180.png", "/favicon.svg"];
 
 self.addEventListener("install", function (e) {

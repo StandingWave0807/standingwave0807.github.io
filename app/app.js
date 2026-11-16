@@ -793,15 +793,16 @@
     var m = sheet(
       '<div class="pad-top"><div class="seg" id="s-kind"><button type="button" data-k="out" class="' + (kind === "out" ? "on" : "") + '">支出</button>' +
       '<button type="button" data-k="in" class="' + (kind === "in" ? "on" : "") + '">收入</button></div>' +
-      '<span class="dim small" style="flex:1;text-align:center">' + esc(opts.title || (isNew ? "" : "改这一笔")) + "</span>" + closeBtn() + "</div>" +
+      '<span class="dim small" style="flex:1;text-align:center">' + esc(opts.title || (isNew ? "" : "改这一笔")) + "</span>" +
+      '<button type="button" class="xbtn" data-x="close" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
       (opts.hint ? '<p class="dim small" style="margin:2px 2px 0">' + esc(opts.hint) + "</p>" : "") +
-      '<div class="amt-show" id="s-show"></div>' +
+      '<div class="amtbox"><div class="amtrow"><span class="pick" id="s-pick"></span><div class="amt-show" id="s-show"></div></div>' +
+      '<div class="notein"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg><input type="text" id="s-note" maxlength="60" placeholder="添加备注" value="' + esc(t.note || "") + '" enterkeyhint="done"></div>' +
+      '<div class="quick" id="s-quick"></div></div>' +
       '<div class="catgrid" id="s-cats"' + (kind === "in" ? " hidden" : "") + "></div>" +
-      '<div class="notein"><input type="text" id="s-note" maxlength="60" placeholder="备注：商家、用途" value="' + esc(t.note || "") + '" enterkeyhint="done"></div>' +
-      '<div class="quick" id="s-quick"></div>' +
       '<div class="dates" id="s-dates"></div>' +
       '<div class="keys" id="s-keys">' +
-      "<button type=\"button\" data-n=\"7\">7</button><button type=\"button\" data-n=\"8\">8</button><button type=\"button\" data-n=\"9\">9</button><button type=\"button\" class=\"op\" data-n=\"back\">⌫</button>" +
+      "<button type=\"button\" data-n=\"7\">7</button><button type=\"button\" data-n=\"8\">8</button><button type=\"button\" data-n=\"9\">9</button><button type=\"button\" class=\"op\" data-n=\"back\" aria-label=\"退格\"><svg viewBox=\"0 0 24 24\"><path d=\"M9 5h11v14H9l-6-7zM12 9l5 6M17 9l-5 6\"/></svg></button>" +
       "<button type=\"button\" data-n=\"4\">4</button><button type=\"button\" data-n=\"5\">5</button><button type=\"button\" data-n=\"6\">6</button><button type=\"button\" class=\"op\" data-n=\"+\">＋</button>" +
       "<button type=\"button\" data-n=\"1\">1</button><button type=\"button\" data-n=\"2\">2</button><button type=\"button\" data-n=\"3\">3</button>" +
       '<button type="button" class="ok" data-x="save">' + (isNew ? "记上" : "保存") + "</button>" +
@@ -814,7 +815,13 @@
       el.innerHTML = '<span class="expr">' + (/[-+]/.test(expr.slice(1)) ? esc(expr.replace(/-/g, " − ").replace(/\+/g, " + ")) : "&nbsp;") + "</span>" +
         '<span class="cur">' + esc(cur()) + '</span><span class="v">' + (!expr ? "0" : !/[-+]/.test(expr.slice(1)) || v === null || isNaN(v) ? esc(expr.replace(/[-+]$/, "")) : esc(plain(v))) + "</span>";
     }
+    function paintPick() {
+      var el = q("s-pick");
+      if (kind === "in") { el.innerHTML = '<span class="dot" style="background:var(--ok)">收</span>收入'; return; }
+      el.innerHTML = cat ? '<span class="dot" style="background:' + catColor(cat) + '">' + esc(initial(catName(cat))) + "</span>" + esc(catName(cat)) : '<span class="dot none">?</span>选分类';
+    }
     function paintCats() {
+      paintPick();
       q("s-cats").innerHTML = cats.map(function (c) {
         return '<button type="button" data-c="' + esc(c.id) + '" class="' + (cat === c.id ? "on" : "") + '"><span class="dot" style="background:' + catColor(c.id) + '">' + esc(initial(c.name)) + "</span>" + esc(c.name) + "</button>";
       }).join("");
@@ -838,7 +845,7 @@
       if (e.target.id === "s-note") {
         if (kind === "out" && !catTouched) {
           var g = Bills.guessCat(e.target.value, S.budget.categories, learned());
-          if (g) { cat = g; [].forEach.call(q("s-cats").children, function (b) { b.classList.toggle("on", b.dataset.c === cat); }); }
+          if (g) { cat = g; [].forEach.call(q("s-cats").children, function (b) { b.classList.toggle("on", b.dataset.c === cat); }); paintPick(); }
         }
         paintQuick();
       }
@@ -865,6 +872,7 @@
         kind = k.dataset.k;
         [].forEach.call(q("s-kind").children, function (b) { b.classList.toggle("on", b === k); });
         q("s-cats").hidden = kind === "in";
+        paintPick();
         paintQuick();
         return;
       }
@@ -872,6 +880,7 @@
         cat = cat === c.dataset.c ? "" : c.dataset.c;
         catTouched = true;
         [].forEach.call(q("s-cats").children, function (b) { b.classList.toggle("on", b.dataset.c === cat); });
+        paintPick();
         paintQuick();
         return;
       }

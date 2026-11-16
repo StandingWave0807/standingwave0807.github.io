@@ -312,3 +312,41 @@ button,.cell,.it,.cat,.tile,.ev{touch-action:manipulation}
 .todo.done .ck:after{content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #fff;border-width:0 2.2px 2.2px 0;transform:rotate(45deg)}
 .todo.done .grow{color:var(--dim);text-decoration:line-through}
 .tabs button{font-size:10.5px}
+
+/* ---- 记一笔 重排 ---- */
+.pad-top .seg{width:auto;margin:0}
+.xbtn{width:32px;height:32px;border-radius:50%;border:0;background:var(--press);display:flex;align-items:center;justify-content:center;padding:0;flex:none}
+.xbtn svg,.notein svg,.keys svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.xbtn svg{color:var(--dim)}
+.amtbox{background:var(--card);border-radius:18px;padding:12px 14px 4px;margin:10px 0 12px}
+.amtrow{display:flex;align-items:center;gap:10px}
+.pick{display:flex;align-items:center;gap:7px;font-size:15px;font-weight:600;flex:none;white-space:nowrap}
+.pick .dot{width:28px;height:28px;border-radius:50%;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.pick .dot.none{background:var(--press);color:var(--dim)}
+.amtrow .amt-show{flex:1;min-width:0;font-size:40px;min-height:0;padding:0;line-height:1.15}
+.amtrow .amt-show .expr{min-height:16px;font-size:13px}
+.amtrow .amt-show .cur{font-size:22px}
+.notein{margin:8px 0 0;padding:6px 0 4px;border-top:.5px solid var(--line);gap:8px}
+.notein svg{color:var(--faint);flex:none}
+.notein input{background:none;padding:8px 0;min-height:0;border-radius:0}
+.notein input:focus{outline:none}
+.quick{padding:0 0 10px}
+.quick:empty,.quick[hidden]{display:none}
+.quick button{background:var(--press);color:var(--fg);padding:5px 11px;font-size:13px}
+.catgrid{grid-template-columns:repeat(5,1fr);gap:10px 4px;margin:0 0 12px}
+.catgrid button{background:none;padding:2px 0;border-radius:12px;font-size:12px;color:var(--dim);gap:5px}
+.catgrid button .dot{width:42px;height:42px;font-size:16px;transition:transform .12s,box-shadow .12s;opacity:.88}
+.catgrid button.on{outline:0;color:var(--fg);font-weight:600}
+.catgrid button.on .dot{opacity:1;transform:scale(1.06);box-shadow:0 0 0 2.5px var(--bg),0 0 0 4.5px var(--acc)}
+.dates{margin:0 0 10px}
+.dates button,.dates label{padding:5px 12px;font-size:13px;background:var(--press)}
+.keys{gap:.5px;background:var(--line);border-radius:16px;overflow:hidden}
+.keys button{border-radius:0;height:54px;background:var(--card)}
+.keys button:active{transform:none;background:var(--press)}
+.keys .op svg{width:24px;height:24px;stroke-width:1.8}
+.keys .ok{border-radius:0}
+.keys .ok:active{opacity:.85;background:var(--acc)}
+.keys{gap:1px}
+.keys button{display:flex;align-items:center;justify-content:center}
+.amtrow{align-items:flex-end}
+.amtrow .pick{padding-bottom:7px}
