@@ -350,3 +350,19 @@ button,.cell,.it,.cat,.tile,.ev{touch-action:manipulation}
 .keys button{display:flex;align-items:center;justify-content:center}
 .amtrow{align-items:flex-end}
 .amtrow .pick{padding-bottom:7px}
+
+/* ---- 分类图标 ---- */
+.ico{--c:#888;width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex:none;
+  background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);transition:background-color .15s,color .15s,transform .15s}
+.ico svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ico.on,.catgrid button.on .ico{background:var(--c);color:#fff}
+.ico.none{background:var(--press);color:var(--dim)}
+.catgrid{grid-template-columns:repeat(5,1fr);gap:12px 2px}
+.catgrid button{gap:6px;font-size:12px;color:var(--dim);padding:0}
+.catgrid button .lb{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+.catgrid button.on{color:var(--fg);font-weight:600}
+.catgrid button.on .ico{transform:scale(1.04)}
+.catgrid button:active .ico{transform:scale(.92)}
+.pick{gap:8px}
+.pick .ico{width:30px;height:30px;border-radius:10px}
+.pick .ico svg{width:17px;height:17px;stroke-width:2}

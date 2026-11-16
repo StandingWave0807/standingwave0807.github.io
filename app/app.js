@@ -172,6 +172,32 @@
     var i = S.budget.categories.findIndex(function (c) { return c.id === id; });
     return i < 0 ? "#9a9a96" : CATCOL[i % CATCOL.length];
   }
+  /* 分类线条图标：按名字里的关键字挑，挑不到用标签 */
+  var ICONS = [
+    [/吃|饭|餐|食|外卖|零食|饮|奶茶|咖啡/, '<path d="M4 11h16a8 8 0 0 1-16 0zM8 7c0-1.5 1-1.5 1-3M12 7c0-1.5 1-1.5 1-3M16 7c0-1.5 1-1.5 1-3"/>'],
+    [/交通|车|地铁|公交|打车|油/, '<rect x="5" y="4" width="14" height="13" rx="3"/><path d="M5 11h14M8 20l1-3M16 20l-1-3"/><circle cx="8.5" cy="14" r=".6"/><circle cx="15.5" cy="14" r=".6"/>'],
+    [/日用|超市|购物|生活|杂/, '<path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/>'],
+    [/学|书|课|教/, '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 21H20"/>'],
+    [/娱乐|玩|游戏|电影/, '<rect x="3" y="7" width="18" height="11" rx="5"/><path d="M8 10.5v4M6 12.5h4"/><circle cx="15.5" cy="11.5" r=".7"/><circle cx="17.5" cy="13.5" r=".7"/>'],
+    [/房|租|水电|住/, '<path d="M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5h4v5"/>'],
+    [/存|储|理财|投资/, '<path d="M5 12a7 6 0 0 1 12-3h2v3l-1.5 1.5L17 17h-2l-.5-1.5h-4L10 17H8l-.5-2A6 6 0 0 1 5 12zM12 7.5h2"/>'],
+    [/衣|服|鞋|美/, '<path d="M8 4l4 2 4-2 4 4-3 3v9H7v-9L4 8z"/>'],
+    [/医|药|健康|病/, '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/>'],
+    [/话费|通讯|手机|网/, '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/>'],
+    [/礼|人情|红包/, '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9c-2-4-6-4-6-1.5S9 9 12 9c3 0 6 .5 6-1.5S14 5 12 9"/>'],
+    [/运动|健身|球/, '<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>'],
+    [/旅|游|机票|酒店/, '<path d="M10 14l-6 3v-2l6-5V5a2 2 0 0 1 4 0v5l6 5v2l-6-3v4l2 1.5V21l-4-1-4 1v-1.5l2-1.5z"/>'],
+    [/宠|猫|狗/, '<circle cx="7" cy="10" r="1.6"/><circle cx="17" cy="10" r="1.6"/><circle cx="10" cy="6.5" r="1.6"/><circle cx="14" cy="6.5" r="1.6"/><path d="M8 17c0-3 2-5 4-5s4 2 4 5-2 3-4 2-4 1-4-2z"/>']
+  ];
+  var TAG = '<path d="M3 12V4h8l9 9-8 8zM7.5 7.5h.01"/>';
+  function catIcon(name) {
+    for (var i = 0; i < ICONS.length; i++) if (ICONS[i][0].test(name || "")) return ICONS[i][1];
+    return TAG;
+  }
+  function icoHtml(id, name, cls) {
+    var col = catColor(id);
+    return '<span class="ico ' + (cls || "") + '" style="--c:' + col + '"><svg viewBox="0 0 24 24">' + catIcon(name) + "</svg></span>";
+  }
   function dot(id, name, kind) {
     var col = kind === "in" ? "var(--ok)" : catColor(id);
     return '<span class="dot" style="background:' + col + '">' + esc(kind === "in" ? "收" : initial(name)) + "</span>";
@@ -817,13 +843,13 @@
     }
     function paintPick() {
       var el = q("s-pick");
-      if (kind === "in") { el.innerHTML = '<span class="dot" style="background:var(--ok)">收</span>收入'; return; }
-      el.innerHTML = cat ? '<span class="dot" style="background:' + catColor(cat) + '">' + esc(initial(catName(cat))) + "</span>" + esc(catName(cat)) : '<span class="dot none">?</span>选分类';
+      if (kind === "in") { el.innerHTML = '<span class="ico on" style="--c:var(--ok)"><svg viewBox="0 0 24 24"><path d="M12 4v16M6 10l6-6 6 6"/></svg></span>收入'; return; }
+      el.innerHTML = cat ? icoHtml(cat, catName(cat), "on") + esc(catName(cat)) : '<span class="ico none"><svg viewBox="0 0 24 24">' + TAG + "</svg></span>选个分类";
     }
     function paintCats() {
       paintPick();
       q("s-cats").innerHTML = cats.map(function (c) {
-        return '<button type="button" data-c="' + esc(c.id) + '" class="' + (cat === c.id ? "on" : "") + '"><span class="dot" style="background:' + catColor(c.id) + '">' + esc(initial(c.name)) + "</span>" + esc(c.name) + "</button>";
+        return '<button type="button" data-c="' + esc(c.id) + '" class="' + (cat === c.id ? "on" : "") + '">' + icoHtml(c.id, c.name) + "<span class=\"lb\">" + esc(c.name) + "</span></button>";
       }).join("");
     }
     function paintQuick() {
