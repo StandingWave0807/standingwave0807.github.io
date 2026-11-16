@@ -75,7 +75,24 @@
   function monLabel(m) { return (+m.slice(0, 4)) + " 年 " + (+m.slice(5, 7)) + " 月"; }
   function initial(s) { return String(s || "?").trim().charAt(0) || "?"; }
 
+  /* 触感：iOS 18+ Safari 点开关会震一下，借一个藏起来的开关；安卓走 vibrate */
+  var hapEl = null;
+  function haptic(n) {
+    try {
+      if (navigator.vibrate && !/iP(hone|ad|od)/.test(navigator.userAgent)) { navigator.vibrate(n > 1 ? [12, 60, 12] : 10); return; }
+      if (!hapEl) {
+        hapEl = document.createElement("label");
+        hapEl.setAttribute("aria-hidden", "true");
+        hapEl.style.cssText = "position:fixed;left:-99px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none";
+        hapEl.innerHTML = '<input type="checkbox" switch tabindex="-1">';
+        document.body.appendChild(hapEl);
+      }
+      hapEl.click();
+      if (n > 1) setTimeout(function () { hapEl.click(); }, 90);
+    } catch (e) {}
+  }
   function toast(text, kind, action, ms) {
+    if (kind === "bad") haptic(2);
     var el = $("toast");
     el.className = "toast" + (kind ? " " + kind : "");
     el.innerHTML = "<span>" + esc(text) + "</span>";
@@ -341,6 +358,7 @@
       if (!el || !moving) { el = null; return; }
       el.firstChild.style.transition = "";
       el.firstChild.style.transform = "";
+      if ((dx < -40) !== el.classList.contains("open")) haptic(1);
       el.classList.toggle("open", dx < -40);
       el.dataset.swiped = "1";
       setTimeout(function (x) { delete x.dataset.swiped; }, 350, el);
@@ -707,23 +725,35 @@
     m.className = "mask";
     m.innerHTML = '<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>' + html + "</div>";
     document.body.appendChild(m);
-    document.body.style.overflow = "hidden";
+    lockScroll(true);
     m.addEventListener("click", function (e) { if (e.target === m) { close(m); if (onDismiss) onDismiss(); } });
     /* 往下拖把手关掉 */
     var sy = null, sh = m.firstChild;
-    sh.addEventListener("touchstart", function (e) { sy = sh.scrollTop <= 0 && e.target.closest(".grab,h3") ? e.touches[0].clientY : null; }, { passive: true });
-    sh.addEventListener("touchmove", function (e) { if (sy !== null) { var d = Math.max(0, e.touches[0].clientY - sy); sh.style.transform = "translateY(" + d + "px)"; } }, { passive: true });
+    sh.addEventListener("touchstart", function (e) { sy = sh.scrollTop <= 0 && e.target.closest(".grab,h3,.pad-top") && !e.target.closest("input,textarea,select") ? e.touches[0].clientY : null; }, { passive: true });
+    sh.addEventListener("touchmove", function (e) { if (sy !== null) { var d = Math.max(0, e.touches[0].clientY - sy); sh.style.transition = "none"; sh.style.transform = "translateY(" + d + "px)"; m.style.background = "rgba(0,0,0," + (0.38 * Math.max(0, 1 - d / 400)) + ")"; } }, { passive: true });
     sh.addEventListener("touchend", function (e) {
       if (sy === null) return;
       var d = e.changedTouches[0].clientY - sy;
       sy = null;
-      if (d > 90) { close(m); if (onDismiss) onDismiss(); } else sh.style.transform = "";
+      if (d > 90) { close(m); if (onDismiss) onDismiss(); } else { sh.style.transition = "transform .2s"; sh.style.transform = ""; m.style.background = ""; }
     });
     return m;
   }
+  var lockY = 0, locked = false;
+  function lockScroll(on) {
+    var b = document.body;
+    if (on && !locked) { lockY = window.scrollY; b.style.position = "fixed"; b.style.top = -lockY + "px"; b.style.left = "0"; b.style.right = "0"; locked = true; }
+    if (!on && locked) { b.style.position = ""; b.style.top = ""; b.style.left = ""; b.style.right = ""; locked = false; window.scrollTo(0, lockY); }
+  }
   function close(m) {
-    if (m && m.parentNode) m.remove();
-    if (!document.querySelector(".mask")) document.body.style.overflow = "";
+    if (!m || !m.parentNode || m.classList.contains("out")) return;
+    m.classList.add("out");
+    var sh = m.firstChild;
+    if (sh && sh.style.transform) { sh.style.transition = "transform .2s"; sh.style.transform = "translateY(100%)"; }
+    var done = false;
+    function fin() { if (done) return; done = true; m.remove(); if (!document.querySelector(".mask:not(.out)")) lockScroll(false); }
+    m.addEventListener("animationend", function (e) { if (e.target === m) fin(); });
+    setTimeout(fin, 260);
   }
 
   /* 记一笔 / 改一笔 / 截图进来的一笔：同一个面板，自带数字键盘，不用唤起系统键盘。t 没有 id 就是新的。 */
@@ -1441,8 +1471,11 @@
   }
 
   /* ------------------------------------------------------------ 框架 */
+  var tabY = {};
   function go(tab) {
-    S.tab = tab;
+    var same = S.tab === tab && S.started && S.shown;
+    if (S.started && S.shown) tabY[S.tab] = window.scrollY;
+    S.tab = tab; S.shown = true;
     ["money", "plan", "cal", "set"].forEach(function (t) { $("v-" + t).hidden = t !== tab; });
     [].forEach.call($("tabs").children, function (b) { b.classList.toggle("on", b.dataset.v === tab); });
     $("title").textContent = TITLES[tab];
@@ -1450,8 +1483,19 @@
     $("fab").setAttribute("aria-label", tab === "cal" ? "新日程" : "记一笔");
     S.deferred = false;
     render();
-    window.scrollTo(0, 0);
+    /* 再点一次当前标签回到顶部；换标签回到上次看的位置 */
+    if (same) window.scrollTo({ top: 0, behavior: "smooth" }); else window.scrollTo(0, tabY[tab] || 0);
+    fabShow(true);
   }
+  var fabY = 0;
+  function fabShow(on) { $("fab").classList.toggle("away", !on); }
+  window.addEventListener("scroll", function () {
+    if (locked) return;
+    var y = window.scrollY, dy = y - fabY;
+    if (Math.abs(dy) < 6) return;
+    fabShow(dy < 0 || y < 40 || y + innerHeight > document.documentElement.scrollHeight - 30);
+    fabY = y;
+  }, { passive: true });
   function render() {
     if (!S.started) return;
     /* 正在输入时同步回来的改动先不重画，免得把光标和输入冲掉；失焦后补一次 */
@@ -1520,6 +1564,10 @@
     if (!window.LabSync || !window.Bills) { document.body.textContent = "脚本没加载全，刷新一下。"; return; }
     LabSync.onStatus(paintSync);
     bindMoney(); bindPlan(); bindCal(); bindSet();
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-n],.seg button,.tabs button,.chip,.cal .gr button,.fab,.sheet .btn.pri,[data-x=save],.sw input");
+      if (b) haptic(1);
+    }, true);
     $("tabs").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) go(b.dataset.v); });
     $("fab").addEventListener("click", function () { if (S.tab === "cal") evSheet(null, S.sel || today()); else txSheet({}); });
     $("syncbtn").addEventListener("click", function () {

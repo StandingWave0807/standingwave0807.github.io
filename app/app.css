@@ -241,3 +241,37 @@ label.f{display:block;font-size:13px;color:var(--dim);margin:14px 2px 6px}
 .gate h2{font-size:22px;margin:0 0 10px}
 .gate p{margin:10px 0}
 .gate .btn{margin-top:14px}
+
+/* ---- 手感：更像原生 App ---- */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+button,.cell,.it,.cat,.tile,.ev{touch-action:manipulation}
+/* 金额不用等宽字体：系统字体 + 等宽数字，和自带 App 一个味道 */
+.num,.ev .tm,.trend text.v{font-family:var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.hero .big{letter-spacing:-.025em;font-weight:700}
+/* 按下去有反馈 */
+.it .in:active{background:var(--press)}
+.cat:active,.tile:active,.banner:active{background:var(--press)}
+.chip:active,.seg button:active,.acts2 .btn:active,.sec button.r:active,.link:active{opacity:.55}
+.cal .gr button:active{background:var(--press)}
+.tabs button:active svg{transform:scale(.88)}
+.tabs svg{transition:transform .12s}
+.btn,.chip,.cat,.tile,.it .in,.cell,.ev{transition:background-color .12s,opacity .12s,transform .2s}
+/* 换标签轻轻淡入 */
+.view:not([hidden]){animation:vin .18s ease-out}
+@keyframes vin{from{opacity:0;transform:translateY(6px)}}
+/* 记一笔按钮：往下翻时让开，往上翻回来 */
+.fab{transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s}
+.fab.away{transform:translateY(120px) scale(.8);opacity:0;pointer-events:none}
+/* 弹层收起也有动画 */
+.mask.out{animation:fadeout .22s forwards;pointer-events:none}
+.mask.out .sheet{animation:down .22s cubic-bezier(.4,0,1,1) forwards}
+@keyframes fadeout{to{opacity:0}}
+@keyframes down{to{transform:translateY(100%)}}
+.sheet{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.sheet .grab{position:relative}
+.sheet .grab:before{content:"";position:absolute;left:-60px;right:-60px;top:-12px;bottom:-12px}
+.amt-show,.keys button{font-family:var(--sans);font-variant-numeric:tabular-nums}
+.amt-show{font-weight:650}
+.keys button{font-size:24px;font-weight:450;transition:background-color .08s,transform .08s}
+.keys button:active{background:var(--press);transform:scale(.96)}
