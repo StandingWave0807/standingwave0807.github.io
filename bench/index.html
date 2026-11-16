@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <meta name="robots" content="noindex">
 <title>机改评测 · 模型雷达图</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -54,7 +55,7 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:var(--line)}
 .fb:empty{display:none}
 .q.ok .fb{color:var(--ok)}.q.bad .fb{color:var(--bad)}
 .fig{margin:10px 0}
-.fig svg{max-width:340px;border:1.5px solid var(--soft);background:#fff;display:block}
+.fig svg{max-width:min(340px,100%);height:auto;border:1.5px solid var(--soft);background:#fff;display:block}
 .fig button{margin-top:6px;font-size:12px;padding:3px 10px}
 .side{position:sticky;top:78px;align-self:start}
 .card{border:3px solid var(--line);background:var(--bg);box-shadow:6px 6px 0 var(--line)}
@@ -83,6 +84,52 @@ svg text{fill:var(--fg);font-size:12px;font-weight:600}
 .clock.run{background:var(--fg);color:var(--bg)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 18px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;box-shadow:4px 4px 0 var(--acc)}
 .toast.on{opacity:1}
+.mbar{display:none}
+html{-webkit-text-size-adjust:100%}
+button,input,textarea{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+@media(max-width:640px){
+ header{padding:0 14px;padding-top:env(safe-area-inset-top);height:calc(50px + env(safe-area-inset-top))}
+ header .dim{display:none}
+ .wrap{padding:16px 14px 0;gap:22px}
+ .side{order:1!important}
+ h1{font-size:26px}
+ .lead{font-size:13.5px;margin-bottom:18px}
+ .step .bd{padding:12px}
+ .row{gap:8px}
+ .row button{flex:1 1 auto;min-height:44px}
+ .row .clock{flex:none;line-height:44px}
+ #secs{flex:0 0 92px}
+ .row .dim{flex-basis:100%}
+ #model{min-width:0!important;flex-basis:100%!important}
+ input[type=text],textarea{font-size:16px}
+ input[type=text]{padding:10px 12px}
+ textarea{min-height:140px}
+ .q{grid-template-columns:34px minmax(0,1fr)}
+ .q .no{font-size:15px;padding:16px 0}
+ .q .hd{flex-direction:column;gap:6px}
+ .q .tag{order:-1;margin-top:0;align-self:flex-start;font-size:10px}
+ .q pre{font-size:12.5px;margin-left:0;margin-right:0}
+ .fig button{min-height:36px}
+ #btnGrade2{display:none}
+ .card{box-shadow:4px 4px 0 var(--line);margin-right:4px}
+ .card .ft button{flex:1;min-height:44px}
+ .legend .it{padding:10px 14px}
+ .legend button{min-height:30px;min-width:30px}
+ .total{font-size:34px}
+ main{padding-bottom:8px}
+ .side{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+ .mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:6;gap:8px;align-items:center;background:var(--bg);border-top:3px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+ .mbar .clock{font-size:20px;line-height:42px;min-width:84px;padding:0 8px}
+ .mbar .prog{flex:1;font:700 12px "JetBrains Mono",Consolas,monospace;color:var(--dim);line-height:1.3}
+ .mbar .prog i{display:block;height:4px;background:var(--soft);margin-top:5px;position:relative}
+ .mbar .prog i b{position:absolute;left:0;top:0;bottom:0;background:var(--fg);width:0;transition:width .2s}
+ .mbar button{min-height:44px;padding:0 16px;font-size:14px}
+ .mbar button:hover,.mbar button:active{box-shadow:none;transform:none}
+ .toast{bottom:calc(84px + env(safe-area-inset-bottom));max-width:86vw;text-align:center}
+ button:hover{box-shadow:none;transform:none}
+ button:active{background:var(--hover)}
+ button.pri:active{opacity:.85}
+}
 </style>
 </head>
 <body>
@@ -129,13 +176,14 @@ svg text{fill:var(--fg);font-size:12px;font-weight:600}
   <div class="card">
     <div class="top"><div><div class="lbl">本次得分</div><div class="total" id="total">—</div></div><div class="lbl" style="text-align:right">radar</div></div>
     <div class="stats"><div><span class="lbl">内容</span><b id="stC">—</b></div><div><span class="lbl">格式</span><b id="stF">—</b></div><div><span class="lbl">用时</span><b id="stT">—</b></div></div>
-    <svg id="radar" viewBox="0 0 360 340" aria-label="雷达图"></svg>
+    <svg id="radar" viewBox="-16 0 392 340" aria-label="雷达图"></svg>
     <div class="legend" id="legend"></div>
     <div class="mix" id="mix" hidden>注意：图里混了不同试卷号的成绩，题目不同，对比仅供参考。</div>
     <div class="ft"><button id="btnPng">保存图片</button><button id="btnReset">清空记录</button></div>
   </div>
 </aside>
 </div>
+<div class="mbar" id="mbar"><span class="clock" id="mclock">00:00</span><span class="prog"><span id="mprog">已填 0</span><i><b id="mbarf"></b></i></span><button id="mPaste">粘贴回答</button><button class="pri" id="mGrade">判分</button></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -265,13 +313,17 @@ Q.forEach(function(q,i){
   if(q.code){var pre=document.createElement('pre');pre.textContent=q.code;d.appendChild(pre)}
   if(q.img){var fig=document.createElement('div');fig.className='fig';fig.innerHTML=SVG[q.img]();
     var b=document.createElement('button');b.textContent='下载这张图';b.onclick=function(){png(SVG[q.img](),'q'+(i+1)+'.png')};fig.appendChild(b);d.appendChild(fig)}
-  var inp=document.createElement('input');inp.type='text';inp.placeholder='答案';inp.id='a'+i;d.appendChild(inp);
+  var inp=document.createElement('input');inp.type='text';inp.placeholder='答案';inp.id='a'+i;inp.autocomplete='off';inp.setAttribute('autocapitalize','off');inp.setAttribute('autocorrect','off');inp.spellcheck=false;inp.enterKeyHint=i<Q.length-1?'next':'done';inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing){e.preventDefault();var nx=$('a'+(i+1));if(nx)nx.focus();else inp.blur()}});inp.addEventListener('input',prog);d.appendChild(inp);
   var fb=document.createElement('div');fb.className='fb';d.appendChild(fb);
   box.appendChild(D);
 });
 
+function saveC(c,name){c.toBlob(function(bl){var f;try{f=new File([bl],name,{type:'image/png'})}catch(e){}
+  if(f&&navigator.canShare&&matchMedia('(pointer:coarse)').matches&&navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(function(){});return}
+  var a=document.createElement('a');a.download=name;a.href=URL.createObjectURL(bl);a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},4000)},'image/png')}
+function prog(){var k=0;Q.forEach(function(_,i){if($('a'+i).value.trim())k++});var e=$('mprog');if(e){e.textContent='已填 '+k+' / '+Q.length;$('mbarf').style.width=(k/Q.length*100)+'%'}}
 function png(svg,name,cb){var img=new Image();img.onload=function(){var c=document.createElement('canvas');c.width=img.width*2;c.height=img.height*2;var g=c.getContext('2d');g.scale(2,2);g.drawImage(img,0,0);
-  if(cb)return cb(c);var a=document.createElement('a');a.download=name;a.href=c.toDataURL('image/png');a.click()};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)}
+  if(cb)return cb(c);saveC(c,name)};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)}
 
 function parse(text){
   var out={},lines=String(text).split(/\r?\n/),start=0,hasHead=false;
@@ -290,7 +342,7 @@ function store(){try{localStorage.setItem(KEY,JSON.stringify(runs))}catch(e){}}
 var COL=['#e4572e','#2e86ab','#29a745','#9b5de5','#f2a541','#d1495b','#00a6a6','#6c757d'];
 var t0=0,tStop=0,lastFmt=null,tick=null;
 function elapsed(){return t0?Math.round(((tStop||Date.now())-t0)/1000):0}
-function showT(){var s=elapsed();$('clock').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');$('clock').classList.toggle('run',!!t0&&!tStop)}
+function showT(){var s=elapsed();$('clock').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');$('clock').classList.toggle('run',!!t0&&!tStop);var m=$('mclock');if(m){m.textContent=$('clock').textContent;m.classList.toggle('run',!!t0&&!tStop)}}
 function startT(){t0=Date.now();tStop=0;clearInterval(tick);tick=setInterval(showT,500);showT();$('btnTimer').textContent='停止计时'}
 function stopT(){if(t0&&!tStop){tStop=Date.now();clearInterval(tick);showT();$('btnTimer').textContent='重新计时'}}
 
@@ -357,12 +409,20 @@ $('btnGrade').onclick=function(){
     if(!n){toast('没识别到“题号: 答案”格式的行');return}
     Q.forEach(function(_,i){$('a'+i).value=p.a[i+1]||''});
     lastFmt=n;toast('识别到 '+n+' 题'+(p.head?'':'（没找到“答案：”标题）'));}
-  grade();window.scrollTo({top:0,behavior:'smooth'});
+  grade();prog();goRes();
 };
-$('btnGrade2').onclick=function(){grade();window.scrollTo({top:0,behavior:'smooth'})};
+$('btnGrade2').onclick=function(){grade();goRes()};
+function mob(){return matchMedia('(max-width:640px)').matches}
+function goRes(){if(mob())document.querySelector('.side').scrollIntoView({behavior:'smooth',block:'start'});else window.scrollTo({top:0,behavior:'smooth'})}
+$('mGrade').onclick=function(){if(!$('paste').value.trim()&&!Q.some(function(_,i){return $('a'+i).value.trim()})){toast('还没有答案：先粘贴回答或填空');return}$('btnGrade').onclick()};
+$('mPaste').onclick=function(){
+  function fall(){var t=$('paste');t.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){t.focus()},300);toast('长按输入框粘贴')}
+  if(!navigator.clipboard||!navigator.clipboard.readText)return fall();
+  navigator.clipboard.readText().then(function(t){if(!t.trim())return fall();$('paste').value=t;stopT();$('btnGrade').onclick()},fall)};
+prog();
 $('btnTimer').onclick=function(){if(t0&&!tStop)stopT();else startT()};
 $('paste').addEventListener('paste',function(){setTimeout(stopT,0)});
-$('btnClear').onclick=function(){t0=0;tStop=0;clearInterval(tick);showT();$('btnTimer').textContent='开始计时';$('paste').value='';$('secs').value='';Q.forEach(function(_,i){$('a'+i).value='';var el=$('q'+i);el.classList.remove('ok','bad');el.querySelector('.fb').textContent=''});$('total').textContent='—';['stC','stF','stT'].forEach(function(k){$(k).textContent='—'})};
+$('btnClear').onclick=function(){t0=0;tStop=0;clearInterval(tick);showT();$('btnTimer').textContent='开始计时';$('paste').value='';$('secs').value='';Q.forEach(function(_,i){$('a'+i).value='';var el=$('q'+i);el.classList.remove('ok','bad');el.querySelector('.fb').textContent=''});$('total').textContent='—';['stC','stF','stT'].forEach(function(k){$(k).textContent='—'});prog()};
 $('btnReset').onclick=function(){if(confirm('清空所有雷达图记录？')){runs=[];store();draw()}};
 $('btnPng').onclick=function(){
   var cs=getComputedStyle(document.documentElement),s=new XMLSerializer().serializeToString($('radar'));
@@ -374,9 +434,10 @@ $('btnPng').onclick=function(){
     g.fillStyle=cs.getPropertyValue('--bg').trim();g.fillRect(0,0,360,H);g.drawImage(img,0,0,360,340);
     g.font='12px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
     runs.forEach(function(r,k2){if(!r.on)return;var y=346+on.indexOf(r)*22;g.fillStyle=COL[k2%COL.length];g.fillRect(16,y,12,12);g.fillStyle=cs.getPropertyValue('--fg').trim();g.fillText(r.name+'  '+r.paper+'  '+r.got+'/'+r.n+(r.secs?'  '+fmt_t(r.secs):''),34,y+11)});
-    var a=document.createElement('a');a.download='radar.png';a.href=c.toDataURL('image/png');a.click()};
+    saveC(c,'radar.png')};
   img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);
 };
+(function tc(){var m=document.querySelector('meta[name=theme-color]');function u(){m.content=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#fff'}u();new MutationObserver(u).observe(document.documentElement,{attributes:true,attributeFilter:['class']})})();
 window.__bench={Q:Q,BANK:BANK,parse:parse,seed:seed};
 
 })();
