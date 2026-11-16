@@ -20,7 +20,7 @@
                       ["study", "学习"], ["fun", "娱乐"], ["save", "存下来", true]];
   var SHORTCUT = "邻苯日程提醒";
   var PREF = "phenol-app-";
-  var TITLES = { money: "记账", plan: "预算", cal: "日程", set: "设置" };
+  var TITLES = { money: "记账", stats: "统计", plan: "预算", cal: "日程", set: "设置" };
 
   var S = { tab: "money", budget: null, cal: null, month: "", filter: null, q: "", searching: false,
             calMonth: "", sel: "", fold: false, started: false };
@@ -137,6 +137,7 @@
     d.months = d.months && typeof d.months === "object" ? d.months : {};
     d.tx = Array.isArray(d.tx) ? d.tx : [];
     d.recurring = Array.isArray(d.recurring) ? d.recurring : [];
+    d.goals = Array.isArray(d.goals) ? d.goals : [];
     return d;
   }
   function freshC() {
@@ -151,6 +152,7 @@
     d.events = Array.isArray(d.events) ? d.events : [];
     d.hide = Array.isArray(d.hide) ? d.hide : [];
     d.show = d.show && typeof d.show === "object" ? d.show : { notes: true, bills: true, countdown: true };
+    d.todos = Array.isArray(d.todos) ? d.todos : [];
     return d;
   }
 
@@ -270,6 +272,8 @@
         '<button class="btn sm pri" type="button" data-a="rec">记上</button></div>';
     }
 
+    h += alertHtml(k, f);
+
     /* 分类：只列这个月有花费或有预算的，点一下筛流水 */
     var rows = k.rows.filter(function (r) { return r.spent || r.alloc + r.carry; })
       .sort(function (a, b) { return b.spent - a.spent; });
@@ -306,7 +310,7 @@
       if (t.d !== last) {
         if (last) h += "</div>";
         last = t.d;
-        h += '<div class="day"><span>' + esc(nice(t.d)) + (t.d === today() ? " · 今天" : t.d === add(today(), -1) ? " · 昨天" : "") +
+        h += '<div class="day" id="day-' + t.d + '"><span>' + esc(nice(t.d)) + (t.d === today() ? " · 今天" : t.d === add(today(), -1) ? " · 昨天" : "") +
           '</span><span class="num">' + (sums[t.d] ? "支出 " + esc(fmt(sums[t.d])) : "") + '</span></div><div class="list">';
       }
       var name = t.kind === "in" ? "收入" : catName(t.cat);
@@ -483,6 +487,7 @@
     h += "</div>";
     if (pend) h += '<button class="btn wide" type="button" data-a="rec" style="margin-top:10px;background:var(--card)">把本月没记的 ' + pend + " 项记上</button>";
 
+    h += goalsHtml();
     h += '<div class="sec"><h2>近六个月</h2></div><div class="card trend">' + trendSvg(mo) +
       '<div class="legend"><span><i style="background:var(--acc)"></i>支出</span><span><i style="background:var(--ok);opacity:.35"></i>收入</span></div></div>';
     v.innerHTML = h;
@@ -509,6 +514,9 @@
   function bindPlan() {
     $("v-plan").addEventListener("click", function (e) {
       var a = e.target.closest("[data-a]"), pc = e.target.closest("[data-pcat]"), rc = e.target.closest("[data-rec]");
+      var ga = e.target.closest("[data-gadd]"), gl = e.target.closest("[data-goal]");
+      if (ga) { var g1 = S.budget.goals.filter(function (x) { return x.id === ga.dataset.gadd; })[0]; if (g1) goalMoveSheet(g1); return; }
+      if (gl) { var g2 = S.budget.goals.filter(function (x) { return x.id === gl.dataset.goal; })[0]; if (g2) goalSheet(g2); return; }
       if (a) {
         var act = a.dataset.a;
         if (act === "p-prev") { S.month = shiftMonth(S.month, -1); render(); }
@@ -519,6 +527,7 @@
         if (act === "rec") applyRec();
         if (act === "addcat") addCat();
         if (act === "addrec") recSheet(null);
+        if (act === "addgoal") goalSheet(null);
         if (act === "hidden") hiddenSheet();
         return;
       }
@@ -1012,6 +1021,7 @@
       var d = add(gStart, i), its = all[d] || [], cols = [];
       its.forEach(function (it) { if (!it.ro && cols.indexOf(it.color) < 0) cols.push(it.color); });
       if (!cols.length && its.length) cols.push("var(--faint)");
+      if ((S.cal.todos || []).some(function (t) { return !t.done && t.due === d; }) && cols.length < 3) cols.push("var(--fg)");
       h += '<button type="button" data-day="' + d + '" class="' + (d.slice(0, 7) !== cm ? "out " : "") + (d === t0 ? "today " : "") + (d === S.sel ? "sel" : "") + '">' +
         "<span>" + (+d.slice(8)) + '</span><div class="dots">' + cols.slice(0, 3).map(function (c) { return '<i style="background:' + esc(c) + '"></i>'; }).join("") + "</div></button>";
     }
@@ -1022,6 +1032,8 @@
     h += sel.length ? sel.map(function (it) { return evRow(it, S.sel); }).join("") :
       '<div class="empty">这天没有安排 · <button type="button" class="link" data-a="new" style="color:var(--fg);font-weight:600">加一个</button></div>';
     h += "</div>";
+
+    h += todosHtml();
 
     var ahead = [];
     for (var j = 0; j < 7; j++) { var dd = add(t0, j); if (dd !== S.sel && all[dd] && all[dd].length) ahead.push(dd); }
@@ -1471,12 +1483,316 @@
   }
 
   /* ------------------------------------------------------------ 框架 */
+  /* ------------------------------------------------------------ 统计页 */
+  function pctTxt(a, b) { if (!b) return a ? "新增" : "—"; var d = Math.round((a - b) / b * 100); return (d > 0 ? "+" : "") + d + "%"; }
+  function donutSvg(parts, total) {
+    var R = 70, r = 46, cx = 90, cy = 90, a0 = -Math.PI / 2, s = '<svg viewBox="0 0 180 180" class="donut" role="img" aria-label="分类占比">';
+    if (!total) return s + '<circle cx="90" cy="90" r="58" fill="none" stroke="var(--press)" stroke-width="24"></circle></svg>';
+    parts.forEach(function (p) {
+      var f = p.v / total; if (f <= 0) return;
+      if (f >= 0.9999) { s += '<circle cx="90" cy="90" r="58" fill="none" stroke="' + p.col + '" stroke-width="24"></circle>'; return; }
+      var a1 = a0 + f * Math.PI * 2, big = f > .5 ? 1 : 0;
+      function P(rr, a) { return (cx + rr * Math.cos(a)).toFixed(2) + " " + (cy + rr * Math.sin(a)).toFixed(2); }
+      s += '<path d="M' + P(R, a0) + " A" + R + " " + R + " 0 " + big + " 1 " + P(R, a1) + " L" + P(r, a1) + " A" + r + " " + r + " 0 " + big + " 0 " + P(r, a0) +
+        'Z" fill="' + p.col + '" stroke="var(--card)" stroke-width="1.5"></path>';
+      a0 = a1;
+    });
+    return s + "</svg>";
+  }
+  function renderStats() {
+    var v = $("v-stats"), mo = S.month, lm = shiftMonth(mo, -1);
+    var cur0 = monthTx(mo), sp = spentBy(mo), spl = spentBy(lm), k = calc(mo);
+    var outs = cur0.filter(function (t) { return t.kind !== "in"; });
+    var dim = daysIn(mo), upto = mo === thisMonth() ? new Date().getDate() : mo < thisMonth() ? dim : 0;
+    var h = monSwitch(mo, "s");
+    /* 概览 */
+    var lastSame = 0;
+    if (mo === thisMonth()) monthTx(lm).forEach(function (t) { if (t.kind !== "in" && +t.d.slice(8) <= upto) lastSame += t.amt; });
+    h += '<div class="tiles">' +
+      '<div class="tile"><small>支出</small><div class="num">' + esc(fmt(sp.out)) + '</div><div class="s">' + outs.length + " 笔</div></div>" +
+      '<div class="tile"><small>日均</small><div class="num">' + esc(fmt(upto ? Math.round(sp.out / upto) : 0)) + '</div><div class="s">' + (upto ? "按 " + upto + " 天算" : "&nbsp;") + "</div></div>" +
+      '<div class="tile"><small>' + (mo === thisMonth() ? "比上月同期" : "比上月") + '</small><div class="num ' + ((mo === thisMonth() ? lastSame : spl.out) && sp.out > (mo === thisMonth() ? lastSame : spl.out) ? "neg" : "") + '">' +
+        esc(pctTxt(sp.out, mo === thisMonth() ? lastSame : spl.out)) + '</div><div class="s">上月' + (mo === thisMonth() ? "同期 " : " ") + esc(fmt(mo === thisMonth() ? lastSame : spl.out)) + "</div></div>" +
+      '<div class="tile ' + (sp.income - sp.out < 0 ? "bad" : sp.income ? "ok" : "") + '"><small>结余率</small><div class="num">' + (sp.income ? Math.round((sp.income - sp.out) / sp.income * 100) + "%" : "—") +
+        '</div><div class="s">' + (sp.income ? "收入 " + esc(fmt(sp.income)) : "这个月没记收入") + "</div></div></div>";
+    if (!outs.length) { v.innerHTML = h + '<div class="list" style="margin-top:12px"><div class="empty">这个月还没有支出可统计</div></div>'; return; }
+    /* 分类占比 */
+    var parts = Object.keys(sp.cat).map(function (id) { return { id: id, v: sp.cat[id], last: spl.cat[id] || 0, col: catColor(id), name: id ? catName(id) : "未分类" }; })
+      .sort(function (a, b) { return b.v - a.v; });
+    h += '<div class="sec"><h2>花在哪</h2></div><div class="card"><div class="donutw">' + donutSvg(parts, sp.out) +
+      '<div class="dc"><small>共</small><b class="num">' + esc(short(sp.out)) + "</b></div></div>";
+    h += '<div class="slist">' + parts.map(function (p) {
+      var d = p.v - p.last;
+      return '<div class="srow tap" data-scat="' + esc(p.id) + '"><i style="background:' + p.col + '"></i><span class="grow">' + esc(p.name) +
+        ' <span class="dim small">' + Math.round(p.v / sp.out * 100) + "%</span></span>" +
+        '<span class="dim small num">' + (p.last ? (d > 0 ? "↑" : d < 0 ? "↓" : "") + esc(fmt(Math.abs(d))) : "上月没有") + "</span>" +
+        '<b class="num">' + esc(fmt(p.v)) + "</b></div>";
+    }).join("") + "</div></div>";
+    /* 每天 */
+    var days = [], max = 1, i;
+    for (i = 1; i <= dim; i++) days.push(0);
+    outs.forEach(function (t) { days[+t.d.slice(8) - 1] += t.amt; });
+    days.forEach(function (x) { max = Math.max(max, x); });
+    var avg = upto ? sp.out / upto : 0, W = 620, H = 200, top = 14, bot = 26, ch = H - top - bot, bw = W / dim;
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" class="daily" role="img" aria-label="每天支出">';
+    days.forEach(function (x, j) {
+      var hh = x / max * ch, d = mo + "-" + p2(j + 1), fut = mo === thisMonth() && j + 1 > upto;
+      svg += '<rect data-sday="' + d + '" x="' + (j * bw + bw * .18) + '" y="' + (top + ch - Math.max(hh, x ? 3 : 0)) + '" width="' + (bw * .64) + '" height="' + Math.max(hh, x ? 3 : 0) +
+        '" rx="3" class="' + (x > avg * 1.8 && avg ? "hi" : "") + (d === S.sday ? " on" : "") + '"></rect>' +
+        '<rect data-sday="' + d + '" x="' + (j * bw) + '" y="0" width="' + bw + '" height="' + H + '" fill="transparent"></rect>';
+      if (j === 0 || (j + 1) % 5 === 0) svg += '<text x="' + (j * bw + bw / 2) + '" y="' + (H - 6) + '" text-anchor="middle"' + (fut ? ' opacity=".5"' : "") + ">" + (j + 1) + "</text>";
+    });
+    if (avg) { var ay = top + ch - avg / max * ch; svg += '<line class="avg" x1="0" x2="' + W + '" y1="' + ay + '" y2="' + ay + '"></line>'; }
+    svg += '<line class="ax" x1="0" x2="' + W + '" y1="' + (top + ch) + '" y2="' + (top + ch) + '"></line></svg>';
+    var sd = S.sday && S.sday.slice(0, 7) === mo ? S.sday : "";
+    h += '<div class="sec"><h2>每天</h2><span class="r">虚线是日均</span></div><div class="card trend">' + svg +
+      '<div class="hint" id="sdayt">' + (sd ? esc(nice(sd)) + " 花了 " + esc(fmt(days[+sd.slice(8) - 1])) + ' · <button type="button" class="link" data-a="s-goday" style="color:var(--fg);font-weight:600;padding:0">看流水 ›</button>' : "点柱子看那天") + "</div></div>";
+    /* 星期几 */
+    var wk = [0, 0, 0, 0, 0, 0, 0], wn = [0, 0, 0, 0, 0, 0, 0];
+    for (i = 1; i <= upto; i++) wn[dow(mo + "-" + p2(i))]++;
+    outs.forEach(function (t) { wk[dow(t.d)] += t.amt; });
+    var wa = wk.map(function (x, j) { return wn[j] ? x / wn[j] : 0; }), wmax = Math.max.apply(null, wa.concat([1]));
+    h += '<div class="sec"><h2>星期几花得多</h2><span class="r">每天平均</span></div><div class="card"><div class="wkb">' + wa.map(function (x, j) {
+      return '<div><span class="num">' + esc(short(x)) + '</span><i style="height:' + Math.max(2, x / wmax * 70).toFixed(0) + 'px"' + (x === wmax && x ? ' class="on"' : "") + "></i><small>" + WD[j] + "</small></div>";
+    }).join("") + "</div></div>";
+    /* 最大几笔 / 常去 */
+    var big = outs.slice().sort(function (a, b) { return b.amt - a.amt; }).slice(0, 5);
+    h += '<div class="sec"><h2>最大的 5 笔</h2></div><div class="list">' + big.map(function (t) {
+      var name = catName(t.cat);
+      return '<div class="cell tap" data-stx="' + esc(t.id) + '">' + dot(t.cat, name) + '<div class="grow"><div>' + esc(t.note || name) + '</div><div class="sub">' + esc(nice(t.d)) + " · " + esc(name) + "</div></div>" +
+        '<span class="num">' + esc(fmt(-t.amt)) + "</span></div>";
+    }).join("") + "</div>";
+    var by = {};
+    outs.forEach(function (t) { var n = (t.note || "").trim(); if (!n) return; by[n] = by[n] || { n: n, c: 0, s: 0, cat: t.cat }; by[n].c++; by[n].s += t.amt; });
+    var top5 = Object.keys(by).map(function (n) { return by[n]; }).filter(function (x) { return x.c > 1; }).sort(function (a, b) { return b.s - a.s; }).slice(0, 5);
+    if (top5.length) {
+      h += '<div class="sec"><h2>常花的地方</h2><span class="r">按备注</span></div><div class="list">' + top5.map(function (x) {
+        return '<div class="cell tap" data-snote="' + esc(x.n) + '">' + dot(x.cat, catName(x.cat)) + '<div class="grow"><div>' + esc(x.n) + '</div><div class="sub">' + x.c + " 次 · 平均 " + esc(fmt(Math.round(x.s / x.c))) + "</div></div>" +
+          '<span class="num">' + esc(fmt(x.s)) + "</span></div>";
+      }).join("") + "</div>";
+    }
+    h += '<div class="sec"><h2>近六个月</h2></div><div class="card trend">' + trendSvg(mo) +
+      '<div class="legend"><span><i style="background:var(--acc)"></i>支出</span><span><i style="background:var(--ok);opacity:.35"></i>收入</span></div></div>';
+    v.innerHTML = h;
+  }
+  function bindStats() {
+    $("v-stats").addEventListener("click", function (e) {
+      var a = e.target.closest("[data-a]"), sc = e.target.closest("[data-scat]"), st = e.target.closest("[data-stx]"),
+          sn = e.target.closest("[data-snote]"), sd = e.target.closest("[data-sday]");
+      if (a) {
+        var act = a.dataset.a;
+        if (act === "s-prev") { S.month = shiftMonth(S.month, -1); render(); }
+        if (act === "s-next") { S.month = shiftMonth(S.month, 1); render(); }
+        if (act === "s-now") { S.month = thisMonth(); render(); }
+        if (act === "s-goday") { S.filter = null; S.q = ""; S.searching = false; var jd = S.sday; go("money"); setTimeout(function () { var el = $("day-" + jd); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 70, behavior: "smooth" }); }, 60); }
+        return;
+      }
+      if (sc) { S.filter = sc.dataset.scat; S.q = ""; S.searching = false; go("money"); return; }
+      if (sn) { S.filter = null; S.q = sn.dataset.snote; S.searching = true; go("money"); return; }
+      if (st) { var t = S.budget.tx.filter(function (x) { return x.id === st.dataset.stx; })[0]; if (t) txSheet(t); return; }
+      if (sd) { S.sday = S.sday === sd.dataset.sday ? "" : sd.dataset.sday; haptic(1); renderStats(); }
+    });
+  }
+
+  /* ------------------------------------------------------------ 存钱目标（存在账本 goals 里，电脑页不认识也会原样保留） */
+  function goalSaved(g) { return (g.log || []).reduce(function (s, x) { return s + x.amt; }, 0); }
+  function goalsHtml() {
+    var gs = S.budget.goals || [];
+    var h = '<div class="sec"><h2>存钱目标</h2><button type="button" class="r" data-a="addgoal">＋ 目标</button></div><div class="list">';
+    if (!gs.length) h += '<div class="empty">想买的东西、旅行、应急金……定个数，一点点存</div>';
+    gs.forEach(function (g) {
+      var sv = goalSaved(g), pct = g.target ? Math.min(100, sv / g.target * 100) : 0, sub = [];
+      if (sv >= g.target) sub.push("✓ 达成了");
+      else {
+        sub.push("还差 " + fmt(g.target - sv));
+        if (g.due && g.due >= today()) {
+          var mleft = Math.max(1, (+g.due.slice(0, 4) - +today().slice(0, 4)) * 12 + (+g.due.slice(5, 7) - +today().slice(5, 7)) + 1);
+          sub.push("每月存 " + fmt(Math.ceil((g.target - sv) / mleft / 100) * 100));
+        } else if (g.due) sub.push('<span class="neg">已过期限</span>');
+      }
+      h += '<div class="cat tap" data-goal="' + esc(g.id) + '"><span class="dot" style="background:' + (sv >= g.target ? "var(--ok)" : "var(--acc)") + ';color:var(--acc-fg)">' + esc(initial(g.name)) + "</span>" +
+        '<div class="mid"><div class="t"><span class="nm">' + esc(g.name) + '</span><span class="num">' + esc(fmt(sv)) + ' <span class="dim">/ ' + esc(fmt(g.target)) + "</span></span></div>" +
+        '<div class="bar"><i style="width:' + pct.toFixed(1) + "%;background:" + (sv >= g.target ? "var(--ok)" : "var(--acc)") + '"></i></div>' +
+        '<div class="meta"><span>' + sub.join(" · ") + "</span><span>" + (g.due ? (+g.due.slice(0, 4)) + " 年 " + (+g.due.slice(5, 7)) + " 月前" : "") + "</span></div></div>" +
+        '<button type="button" class="btn sm" data-gadd="' + esc(g.id) + '">存</button></div>';
+    });
+    return h + "</div>";
+  }
+  function goalSheet(g) {
+    var isNew = !g, e = g || { name: "", target: 0, due: "" };
+    var m = sheet("<h3>" + (isNew ? "新的存钱目标" : "存钱目标") + closeBtn() + "</h3>" +
+      '<label class="f">存来干嘛</label><input type="text" id="g-name" maxlength="30" placeholder="新电脑、毕业旅行、应急金……" value="' + esc(e.name) + '">' +
+      '<div class="two"><div><label class="f">目标金额</label><input type="text" id="g-amt" inputmode="decimal" class="num" value="' + (e.target ? plain(e.target) : "") + '"></div>' +
+      '<div><label class="f">期限（可不填）</label><input type="date" id="g-due" value="' + esc(e.due || "") + '"></div></div>' +
+      (isNew ? "" : '<label class="f">记录</label><div class="list">' + ((g.log || []).slice().reverse().slice(0, 12).map(function (x) {
+        return '<div class="cell"><div class="grow"><div>' + esc(nice(x.d)) + "</div></div><span class=\"num " + (x.amt > 0 ? "pos" : "neg") + '">' + esc(fmt(x.amt, true)) + "</span></div>";
+      }).join("") || '<div class="empty">还没存过</div>') + "</div>") +
+      '<div class="acts">' + (isNew ? "" : '<button type="button" class="btn danger" data-x="del">删除</button>') +
+      '<button type="button" class="btn pri" data-x="save">' + (isNew ? "开始存" : "保存") + "</button></div>");
+    var q = function (id) { return m.querySelector("#" + id); };
+    if (isNew) setTimeout(function () { q("g-name").focus(); }, 60);
+    m.addEventListener("click", function (ev) {
+      var x = ev.target.closest("[data-x]");
+      if (!x) return;
+      if (x.dataset.x === "close") { close(m); return; }
+      if (x.dataset.x === "del") {
+        ask("删掉目标「" + g.name + "」？存的记录一起删，流水不动。", "删除", true).then(function (y) {
+          if (!y) return;
+          S.budget.goals.splice(S.budget.goals.indexOf(g), 1); close(m); changed("budget");
+        });
+        return;
+      }
+      var name = q("g-name").value.trim(), amt = parseAmt(q("g-amt").value), due = q("g-due").value;
+      if (!name) { toast("写个名字", "bad"); return; }
+      if (!amt || isNaN(amt) || amt <= 0) { toast("目标金额看不懂", "bad"); return; }
+      var row = g || { id: "g" + uid(), log: [], ts: Date.now() };
+      row.name = name.slice(0, 30); row.target = amt; row.due = validDate(due) ? due : "";
+      if (isNew) S.budget.goals.push(row);
+      close(m); changed("budget");
+      toast(isNew ? "目标「" + row.name + "」开始了" : "改好了");
+    });
+  }
+  function goalMoveSheet(g) {
+    var dir = 1, expr = "", alsoTx = pref("goaltx") !== "0";
+    var save = S.budget.categories.filter(function (c) { return c.id === "save"; })[0] || S.budget.categories.filter(function (c) { return c.roll; })[0];
+    var m = sheet("<h3>" + esc(g.name) + closeBtn() + "</h3>" +
+      '<div class="seg" id="gm-dir"><button type="button" data-k="1" class="on">存进去</button><button type="button" data-k="-1">取出来</button></div>' +
+      '<label class="f">金额</label><input type="text" id="gm-amt" inputmode="decimal" class="num" placeholder="0">' +
+      '<div class="chips" style="margin-top:10px">' + [50, 100, 200, 500, 1000].map(function (n) { return '<button type="button" class="chip" data-q="' + n + '">' + cur() + n + "</button>"; }).join("") + "</div>" +
+      (save ? '<div class="cell" style="padding:14px 2px 0;min-height:0"><div class="grow"><div>同时记一笔「' + esc(save.name) + '」支出</div><div class="sub">这样本月预算也会扣掉，取出时不记</div></div>' +
+        '<label class="sw"><input type="checkbox" id="gm-tx"' + (alsoTx ? " checked" : "") + "><span></span></label></div>" : "") +
+      '<div class="acts"><button type="button" class="btn pri" data-x="save">确定</button></div>');
+    var q = function (id) { return m.querySelector("#" + id); };
+    setTimeout(function () { q("gm-amt").focus(); }, 60);
+    m.addEventListener("click", function (ev) {
+      var k = ev.target.closest("[data-k]"), qq = ev.target.closest("[data-q]"), x = ev.target.closest("[data-x]");
+      if (k) { dir = +k.dataset.k; [].forEach.call(q("gm-dir").children, function (b) { b.classList.toggle("on", b === k); }); return; }
+      if (qq) { q("gm-amt").value = qq.dataset.q; return; }
+      if (!x) return;
+      if (x.dataset.x === "close") { close(m); return; }
+      var amt = parseAmt(q("gm-amt").value);
+      if (!amt || isNaN(amt) || amt <= 0) { toast("金额看不懂", "bad"); return; }
+      if (dir < 0 && amt > goalSaved(g)) { toast("没存这么多", "bad"); return; }
+      var d = today(), tx = save && q("gm-tx") && q("gm-tx").checked && dir > 0;
+      if (save && q("gm-tx")) pref("goaltx", q("gm-tx").checked ? null : "0");
+      g.log = g.log || [];
+      g.log.push({ id: uid(), d: d, amt: dir * amt });
+      if (tx) S.budget.tx.push({ id: uid(), d: d, amt: amt, kind: "out", cat: save.id, note: "存：" + g.name, ts: Date.now() });
+      close(m); changed("budget");
+      var sv = goalSaved(g);
+      toast(sv >= g.target && dir > 0 ? "🎉 「" + g.name + "」存够了！" : (dir > 0 ? "存了 " : "取了 ") + fmt(amt) + " · 进度 " + Math.min(100, Math.round(sv / g.target * 100)) + "%");
+    });
+  }
+
+  /* ------------------------------------------------------------ 待办（存在日程 todos 里） */
+  function todosHtml() {
+    var ts = S.cal.todos || [], t0 = today();
+    var open = ts.filter(function (t) { return !t.done; }).sort(function (a, b) {
+      return (a.due || "9999") < (b.due || "9999") ? -1 : (a.due || "9999") > (b.due || "9999") ? 1 : (a.ts || 0) - (b.ts || 0);
+    });
+    var done = ts.filter(function (t) { return t.done; }).sort(function (a, b) { return (b.doneAt || 0) - (a.doneAt || 0); });
+    var h = '<div class="sec"><h2>待办 <span class="dim small" style="font-weight:400">' + open.length + "</span></h2>" +
+      (done.length ? '<button type="button" class="r" data-a="tdone">' + (S.showDone ? "收起完成的" : "完成的 " + done.length) + "</button>" : "") + "</div>" +
+      '<div class="list"><div class="tadd"><input type="text" id="tnew" placeholder="加一条待办，回车" maxlength="80" enterkeyhint="done">' +
+      '<button type="button" class="btn sm" data-a="tdate">' + (S.tdue ? esc(rel(S.tdue) || S.tdue.slice(5)) : "日期") + "</button></div>";
+    open.concat(S.showDone ? done : []).forEach(function (t) {
+      var late = t.due && t.due < t0 && !t.done;
+      h += '<div class="todo' + (t.done ? " done" : "") + '" data-tid="' + esc(t.id) + '"><button type="button" class="ck" data-tck="' + esc(t.id) + '" aria-label="完成"></button>' +
+        '<div class="grow"><div>' + esc(t.title) + "</div>" + (t.due ? '<div class="sub' + (late ? " neg" : "") + '">' + esc(nice(t.due)) + (late ? " · 过期了" : t.due === t0 ? " · 今天" : "") + "</div>" : "") + "</div></div>";
+    });
+    if (!open.length && !S.showDone) h += '<div class="empty" style="padding:16px">没有待办，清爽</div>';
+    return h + "</div>";
+  }
+  function addTodo(title) {
+    title = (title || "").trim();
+    if (!title) return;
+    S.cal.todos.push({ id: "t" + uid(), title: title.slice(0, 80), due: S.tdue || "", done: false, ts: Date.now() });
+    S.tdue = "";
+    changed("calendar");
+    setTimeout(function () { var i = $("tnew"); if (i) i.focus(); }, 30);
+  }
+  function todoSheet(t) {
+    var m = sheet("<h3>待办" + closeBtn() + "</h3>" +
+      '<input type="text" id="t-title" maxlength="80" value="' + esc(t.title) + '">' +
+      '<label class="f">日期（可不填）</label><input type="date" id="t-due" value="' + esc(t.due || "") + '">' +
+      '<div class="acts"><button type="button" class="btn danger" data-x="del">删除</button><button type="button" class="btn pri" data-x="save">保存</button></div>');
+    var q = function (id) { return m.querySelector("#" + id); };
+    m.addEventListener("click", function (ev) {
+      var x = ev.target.closest("[data-x]");
+      if (!x) return;
+      if (x.dataset.x === "close") { close(m); return; }
+      if (x.dataset.x === "del") {
+        var i = S.cal.todos.indexOf(t); S.cal.todos.splice(i, 1); close(m); changed("calendar");
+        toast("删了「" + t.title + "」", "", { label: "撤销", run: function () { S.cal.todos.push(t); changed("calendar"); } }, 5000);
+        return;
+      }
+      var ti = q("t-title").value.trim(), du = q("t-due").value;
+      if (!ti) { toast("写点内容", "bad"); return; }
+      t.title = ti.slice(0, 80); t.due = validDate(du) ? du : "";
+      close(m); changed("calendar");
+    });
+  }
+  function bindTodos() {
+    var v = $("v-cal");
+    v.addEventListener("keydown", function (e) {
+      if (e.target.id === "tnew" && e.key === "Enter" && !e.isComposing) { e.preventDefault(); var val = e.target.value; e.target.value = ""; addTodo(val); }
+    });
+    v.addEventListener("click", function (e) {
+      var ck = e.target.closest("[data-tck]"), td = e.target.closest(".todo[data-tid]"), a = e.target.closest("[data-a]");
+      if (a && a.dataset.a === "tdone") { S.showDone = !S.showDone; render(); return; }
+      if (a && a.dataset.a === "tdate") {
+        var opts = [[today(), "今天"], [add(today(), 1), "明天"], [add(today(), 6 - dow(today())), "这周日"], ["", "不要日期"]];
+        var m = sheet("<h3>什么时候" + closeBtn() + '</h3><div class="chips">' + opts.map(function (o) { return '<button type="button" class="chip' + (S.tdue === o[0] ? " on" : "") + '" data-td="' + o[0] + '">' + o[1] + "</button>"; }).join("") +
+          '</div><label class="f">或者选一天</label><input type="date" id="td-pick" value="' + esc(S.tdue || "") + '">');
+        m.addEventListener("click", function (ev) {
+          var c = ev.target.closest("[data-td]"), x = ev.target.closest("[data-x]");
+          if (x) { close(m); return; }
+          if (c) { S.tdue = c.dataset.td; close(m); render(); }
+        });
+        m.querySelector("#td-pick").addEventListener("change", function (ev) { if (validDate(ev.target.value)) { S.tdue = ev.target.value; close(m); render(); } });
+        return;
+      }
+      if (ck) {
+        var t = S.cal.todos.filter(function (x) { return x.id === ck.dataset.tck; })[0];
+        if (!t) return;
+        t.done = !t.done; t.doneAt = t.done ? Date.now() : 0;
+        var row = ck.closest(".todo");
+        if (row) row.classList.toggle("done", t.done);
+        haptic(1);
+        setTimeout(function () { changed("calendar"); }, t.done ? 350 : 0);
+        if (t.done) toast("完成「" + t.title + "」", "", { label: "撤销", run: function () { t.done = false; t.doneAt = 0; changed("calendar"); } }, 4000);
+        return;
+      }
+      if (td) {
+        var tt = S.cal.todos.filter(function (x) { return x.id === td.dataset.tid; })[0];
+        if (tt) todoSheet(tt);
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------ 超支提醒（记账首页） */
+  function alertHtml(k, f) {
+    if (S.month !== thisMonth()) return "";
+    var over = [], near = [];
+    k.rows.forEach(function (r) {
+      var av = r.alloc + r.carry;
+      if (r.loose || av <= 0) return;
+      if (r.spent > av) over.push(r);
+      else if (r.spent / av > Math.max(.9, f + .15)) near.push(r);
+    });
+    if (!over.length && !near.length) return "";
+    var parts = over.map(function (r) { return esc(r.c.name) + " 超了 " + esc(fmt(r.spent - r.alloc - r.carry)); })
+      .concat(near.map(function (r) { return esc(r.c.name) + " 只剩 " + esc(fmt(r.alloc + r.carry - r.spent)); }));
+    return '<div class="banner ' + (over.length ? "bad" : "") + '"><span class="grow">' + (over.length ? "⚠️ " : "") + parts.slice(0, 3).join("，") + (parts.length > 3 ? " 等" : "") + "</span>" +
+      '<button class="btn sm" type="button" data-a="goplan">调预算</button></div>';
+  }
+
   var tabY = {};
   function go(tab) {
     var same = S.tab === tab && S.started && S.shown;
     if (S.started && S.shown) tabY[S.tab] = window.scrollY;
     S.tab = tab; S.shown = true;
-    ["money", "plan", "cal", "set"].forEach(function (t) { $("v-" + t).hidden = t !== tab; });
+    ["money", "stats", "plan", "cal", "set"].forEach(function (t) { $("v-" + t).hidden = t !== tab; });
     [].forEach.call($("tabs").children, function (b) { b.classList.toggle("on", b.dataset.v === tab); });
     $("title").textContent = TITLES[tab];
     $("fab").hidden = tab === "set";
@@ -1508,6 +1824,7 @@
       return;
     }
     if (S.tab === "money") renderMoney();
+    if (S.tab === "stats") renderStats();
     if (S.tab === "plan") renderPlan();
     if (S.tab === "cal") renderCal();
     if (S.tab === "set") renderSet();
@@ -1548,7 +1865,7 @@
         normalize: normC,
         isEmpty: function (d) { return !d || !d.events.length; }
       });
-      go(location.hash === "#cal" ? "cal" : location.hash === "#plan" ? "plan" : "money");
+      go(location.hash === "#cal" ? "cal" : location.hash === "#plan" ? "plan" : location.hash === "#stats" ? "stats" : "money");
       handleHash();
     });
   }
@@ -1563,7 +1880,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     if (!window.LabSync || !window.Bills) { document.body.textContent = "脚本没加载全，刷新一下。"; return; }
     LabSync.onStatus(paintSync);
-    bindMoney(); bindPlan(); bindCal(); bindSet();
+    bindMoney(); bindStats(); bindPlan(); bindCal(); bindTodos(); bindSet();
     document.addEventListener("click", function (e) {
       var b = e.target.closest && e.target.closest("[data-n],.seg button,.tabs button,.chip,.cal .gr button,.fab,.sheet .btn.pri,[data-x=save],.sw input");
       if (b) haptic(1);

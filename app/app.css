@@ -246,9 +246,6 @@ label.f{display:block;font-size:13px;color:var(--dim);margin:14px 2px 6px}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 button,.cell,.it,.cat,.tile,.ev{touch-action:manipulation}
-/* 金额不用等宽字体：系统字体 + 等宽数字，和自带 App 一个味道 */
-.num,.ev .tm,.trend text.v{font-family:var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.hero .big{letter-spacing:-.025em;font-weight:700}
 /* 按下去有反馈 */
 .it .in:active{background:var(--press)}
 .cat:active,.tile:active,.banner:active{background:var(--press)}
@@ -271,7 +268,47 @@ button,.cell,.it,.cat,.tile,.ev{touch-action:manipulation}
 .sheet{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .sheet .grab{position:relative}
 .sheet .grab:before{content:"";position:absolute;left:-60px;right:-60px;top:-12px;bottom:-12px}
-.amt-show,.keys button{font-family:var(--sans);font-variant-numeric:tabular-nums}
-.amt-show{font-weight:650}
-.keys button{font-size:24px;font-weight:450;transition:background-color .08s,transform .08s}
+.keys button{transition:background-color .08s,transform .08s}
 .keys button:active{background:var(--press);transform:scale(.96)}
+
+/* ---- 统计 ---- */
+.donutw{position:relative;width:180px;margin:4px auto 6px}
+.donut{width:180px;height:180px;display:block}
+.donutw .dc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donutw .dc small{font-size:12px;color:var(--dim)}
+.donutw .dc b{font-size:22px}
+.slist{margin:6px -16px -14px}
+.srow{display:flex;align-items:center;gap:10px;padding:11px 16px;position:relative;font-size:15px}
+.srow+.srow:before{content:"";position:absolute;left:16px;right:0;top:0;border-top:.5px solid var(--line)}
+.srow i{width:10px;height:10px;border-radius:3px;flex:none}
+.srow b{min-width:76px;text-align:right;font-weight:650}
+.srow:active{background:var(--press)}
+.daily rect{fill:var(--acc);opacity:.85}
+.daily rect.hi{fill:var(--bad)}
+.daily rect.on{fill:var(--warn);opacity:1}
+.daily rect[fill=transparent]{fill:transparent;opacity:1}
+.daily text{font-size:18px;fill:var(--dim);font-family:var(--sans)}
+.daily .avg{stroke:var(--dim);stroke-width:2;stroke-dasharray:6 6}
+.daily .ax{stroke:var(--line);stroke-width:2}
+.wkb{display:grid;grid-template-columns:repeat(7,1fr);align-items:end;gap:6px;height:118px}
+.wkb div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%}
+.wkb i{width:62%;background:var(--press);border-radius:6px 6px 2px 2px}
+.wkb i.on{background:var(--acc)}
+.wkb span{font-size:11px;color:var(--dim)}
+.wkb small{font-size:12px;color:var(--dim)}
+.banner.bad{background:var(--badbg)}
+.cat .btn.sm{flex:none;background:var(--press)}
+/* ---- 待办 ---- */
+.tadd{display:flex;gap:8px;align-items:center;padding:8px 10px 8px 16px}
+.tadd input{background:none;padding:6px 0;min-height:36px;border-radius:0}
+.tadd input:focus{outline:none}
+.tadd .btn{flex:none;background:var(--press)}
+.todo{display:flex;gap:12px;align-items:center;padding:11px 16px;position:relative}
+.todo:before,.tadd+.empty:before{content:"";position:absolute;left:16px;right:0;top:0;border-top:.5px solid var(--line)}
+.todo:active{background:var(--press)}
+.todo .sub{font-size:12.5px;color:var(--dim)}.todo .sub.neg{color:var(--bad)}
+.todo .ck{width:24px;height:24px;border-radius:50%;border:1.8px solid var(--faint);background:none;flex:none;padding:0;position:relative;transition:.15s}
+.todo.done .ck{background:var(--ok);border-color:var(--ok)}
+.todo.done .ck:after{content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;border:solid #fff;border-width:0 2.2px 2.2px 0;transform:rotate(45deg)}
+.todo.done .grow{color:var(--dim);text-decoration:line-through}
+.tabs button{font-size:10.5px}
